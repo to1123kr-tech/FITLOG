@@ -927,8 +927,11 @@ async function renderCalendar(){
     else if(rPm&&rAm) info+=`<button class="calRunPm" onclick="event.stopPropagation();openRunSlide('${rAm.id}','${rPm.id}',1)">${rPm.runTime}분</button>`;
     else info+=`<div class="calRunEmpty"></div>`;
     // 걸음수 - 없으면 빈칸 고정
+    const achieved=steps>=stepsGoal;
+    const stepClr=steps===0?'transparent':achieved?'rgba(139,92,246,.8)':'rgba(139,92,246,.22)';
+    const numClr=achieved?'var(--text)':'var(--text3)';
     const bar=steps
-      ?`<div class="calStepBox"><div class="calStepFill" style="width:${pct}%"></div><div class="calStepNum">${steps.toLocaleString()}</div></div>`
+      ?`<div class="calStepBox"><div class="calStepFill" style="width:${pct}%;background:${stepClr}"></div><div class="calStepNum" style="color:${numClr}">${steps.toLocaleString()}</div></div>`
       :`<div class="calStepBox calStepEmpty"></div>`;
     html+=`<div class="${cls}" onclick="openCalDetail('${ds}')"><div class="calDayRow"><div class="calDay">${d}</div>${dots}</div><div class="calInfo">${info}</div>${bar}</div>`;
   }
@@ -950,14 +953,48 @@ function renderCalStats(){
     <div class="calStatCard"><div class="sv" style="color:var(--am)">${runCount}</div><div class="sl">운동횟수</div></div>
     <div class="calStatCard"><div class="sv" style="color:var(--steps)">${runMins}분</div><div class="sl">총운동</div></div>
     <div class="calStatCard"><div class="sv" style="color:var(--pm)">${goalDays}</div><div class="sl">목표달성</div></div>`;
+
+  // ── 전체 기록 기준 요약 (가로 배열) ──
   const sumEl=document.getElementById('calSummary');
   if(!sumEl) return;
-  if(!dp.length){sumEl.style.display='none';return;}
+  const all=allPhotos;
+  if(!all.length){sumEl.style.display='none';return;}
+  const allRunDays=new Set(all.filter(p=>p.type==='running').map(p=>p.dateStr)).size;
+  const allRunCount=all.filter(p=>p.type==='running').length;
+  const allRunMins=all.filter(p=>p.type==='running').reduce((a,b)=>a+(b.runTime||0),0);
+  const allTotalSteps=all.filter(p=>p.type==='steps').reduce((a,b)=>a+(b.steps||0),0);
+  const allGoalDays=all.filter(p=>p.type==='steps'&&p.steps>=stepsGoal).length;
+  const allStepDays=new Set(all.filter(p=>p.type==='steps').map(p=>p.dateStr)).size;
+  const allAvgSteps=allStepDays?Math.round(allTotalSteps/allStepDays):0;
   sumEl.style.display='block';
-  const avgSteps=stepDays?Math.round(totalSteps/stepDays):0;
-  sumEl.innerHTML=`<div style="font-weight:700;color:var(--text);margin-bottom:5px;">📊 ${calYear}년 ${calMonth+1}월 요약</div>
-🏃 운동 ${runDays}일 ${runCount}회 · 총 ${runMins}분<br>
-👣 총 걸음수 ${totalSteps.toLocaleString()} · 목표달성 ${goalDays}일${avgSteps?`<br>📈 평균 ${avgSteps.toLocaleString()}걸음/일`:''}`;
+  sumEl.innerHTML=`
+    <div style="font-weight:700;color:var(--text);font-size:12px;margin-bottom:8px;">📋 전체 기록 요약</div>
+    <div style="display:flex;gap:0;overflow-x:auto;">
+      <div style="flex:1;min-width:0;text-align:center;padding:6px 4px;border-right:1px solid var(--border);">
+        <div style="font-size:14px;font-weight:700;color:var(--run)">${allRunDays}</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:2px;">운동일수</div>
+      </div>
+      <div style="flex:1;min-width:0;text-align:center;padding:6px 4px;border-right:1px solid var(--border);">
+        <div style="font-size:14px;font-weight:700;color:var(--am)">${allRunCount}</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:2px;">운동횟수</div>
+      </div>
+      <div style="flex:1;min-width:0;text-align:center;padding:6px 4px;border-right:1px solid var(--border);">
+        <div style="font-size:13px;font-weight:700;color:var(--run)">${allRunMins}분</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:2px;">총운동시간</div>
+      </div>
+      <div style="flex:1;min-width:0;text-align:center;padding:6px 4px;border-right:1px solid var(--border);">
+        <div style="font-size:13px;font-weight:700;color:var(--steps)">${allTotalSteps.toLocaleString()}</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:2px;">총걸음수</div>
+      </div>
+      <div style="flex:1;min-width:0;text-align:center;padding:6px 4px;border-right:1px solid var(--border);">
+        <div style="font-size:14px;font-weight:700;color:var(--pm)">${allGoalDays}</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:2px;">목표달성</div>
+      </div>
+      <div style="flex:1;min-width:0;text-align:center;padding:6px 4px;">
+        <div style="font-size:13px;font-weight:700;color:var(--text2)">${allAvgSteps.toLocaleString()}</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:2px;">평균걸음</div>
+      </div>
+    </div>`;
 }
 async function openRunSlide(amId, pmId, startIdx){
   allPhotos=await dbAll('photos');
