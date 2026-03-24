@@ -989,12 +989,14 @@ async function renderCalendar(){
     const steps=stE?stE.steps:0;
     const pct=Math.min(100,Math.round(steps/stepsGoal*100));
     let info='';
-    // 오전 런닝 - 없으면 빈칸 고정
-    if(rAm) info+=`<button class="calRunAm" onclick="event.stopPropagation();openRunSlide('${rAm.id}','${rPm?rPm.id:''}',0)">${rAm.runTime}분</button>`;
+    // 오전 운동 - 없으면 빈칸 고정
+    const rAmIds=rAmList.map(p=>p.id).join(',');
+    const rPmIds=rPmList.map(p=>p.id).join(',');
+    if(rAm) info+=`<button class="calRunAm" onclick="event.stopPropagation();openRunSlideIds('${rAmIds+','+rPmIds}',0)">${rAm.runTime}분</button>`;
     else info+=`<div class="calRunEmpty"></div>`;
-    // 오후 런닝 - 없으면 빈칸 고정
-    if(rPm&&!rAm) info+=`<button class="calRunPm" onclick="event.stopPropagation();openRunSlide('${rPm.id}','',0)">${rPm.runTime}분</button>`;
-    else if(rPm&&rAm) info+=`<button class="calRunPm" onclick="event.stopPropagation();openRunSlide('${rAm.id}','${rPm.id}',1)">${rPm.runTime}분</button>`;
+    // 오후 운동 - 없으면 빈칸 고정
+    if(rPm&&!rAm) info+=`<button class="calRunPm" onclick="event.stopPropagation();openRunSlideIds('${rPmIds}',0)">${rPm.runTime}분</button>`;
+    else if(rPm&&rAm) info+=`<button class="calRunPm" onclick="event.stopPropagation();openRunSlideIds('${rAmIds+','+rPmIds}',${rAmList.length})">${rPm.runTime}분</button>`;
     else info+=`<div class="calRunEmpty"></div>`;
     // 걸음수 - 없으면 빈칸 고정
     const achieved=steps>=stepsGoal;
@@ -1065,6 +1067,13 @@ function renderCalStats(){
         <div style="font-size:9px;color:var(--text3);margin-top:2px;">평균걸음</div>
       </div>
     </div>`;
+}
+async function openRunSlideIds(idsStr, startIdx){
+  allPhotos=await dbAll('photos');
+  const ids=idsStr.split(',').filter(Boolean);
+  pvPhotos=ids.map(id=>allPhotos.find(x=>x.id===id)).filter(Boolean);
+  pvCurIdx=startIdx||0;buildPV();
+  document.getElementById('pvFull').classList.add('open');
 }
 async function openRunSlide(amId, pmId, startIdx){
   allPhotos=await dbAll('photos');
