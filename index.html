@@ -338,7 +338,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
     <div class="page" id="pg-upload">
       <div class="upZone" id="upZone">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-        <div class="uzMain">사진 업로드</div>
+        <div class="uzMain">사진 등록</div>
         <div class="uzSub">탭하여 선택 · 다중 선택 가능</div>
       </div>
       <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
@@ -350,6 +350,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 
       <!-- 작은 버튼 토글 입력 -->
       <div class="quickBtnRow">
+        <button class="quickToggleBtn" id="runToggleBtn" onclick="toggleQuick('run')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          🏃 전체 운동
+        </button>
         <button class="quickToggleBtn" id="stepsToggleBtn" onclick="toggleQuick('steps')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16l4-4 4 4 4-4 4 4"/></svg>
           👣 걸음수
@@ -358,6 +362,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
           💪 인바디
         </button>
+      </div>
+      <div class="quickPanel" id="qPanel-run">
+        <div class="inpRow">
+          <div class="inpGroup"><div class="inpLabel">날짜</div><input class="inpField" type="date" id="qRunDate"></div>
+          <div class="inpGroup"><div class="inpLabel">오전/오후</div><select class="inpField" id="qRunAmpm"><option value="am">오전</option><option value="pm">오후</option></select></div>
+        </div>
+        <div class="inpGroup"><div class="inpLabel">운동 시간 (분)</div><input class="inpField" type="number" id="qRunTime" placeholder="예: 45" autocomplete="off" inputmode="numeric" style="font-size:20px;font-weight:700;text-align:center;"></div>
+        <button class="btnPrimary" onclick="saveQuickRun()">저장</button>
       </div>
 
       <div class="quickPanel" id="qPanel-steps">
@@ -387,7 +399,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
     <div class="page" id="pg-photo">
       <div class="photoSubBar">
         <button class="pSubBtn active" onclick="switchPhotoSub('myphoto',this)">📷 내 사진</button>
-        <button class="pSubBtn" onclick="switchPhotoSub('running',this)">🏃 런닝</button>
+        <button class="pSubBtn" onclick="switchPhotoSub('running',this)">🏃 전체 운동</button>
       </div>
       <div class="photoSubWrap">
         <div class="photoSubPane active" id="pane-myphoto">
@@ -402,7 +414,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
         </div>
         <div class="photoSubPane" id="pane-running">
           <div id="runPhotoList"></div>
-          <div id="runPhotoEmpty" class="emptyState"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><p>등록된 런닝 사진이 없어요</p></div>
+          <div id="runPhotoEmpty" class="emptyState"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><p>등록된 운동 사진이 없어요</p></div>
         </div>
       </div>
     </div>
@@ -459,7 +471,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 
   <div id="tabbar">
     <button class="tBtn active" data-pg="cal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>달력</button>
-    <button class="tBtn" data-pg="upload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>업로드</button>
+    <button class="tBtn" data-pg="upload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>등록</button>
     <button class="tBtn" data-pg="photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>사진</button>
     <button class="tBtn" data-pg="inbody"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>인바디</button>
     <button class="tBtn" data-pg="art"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>아트</button>
@@ -474,7 +486,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
     <div id="mRegPreview" style="margin-bottom:12px;"></div>
     <div class="typeGrid">
       <div class="typeCard" data-t="myphoto" onclick="pickType(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><div class="tn">내 사진</div><div class="td">사진 탭에 등록</div></div>
-      <div class="typeCard" data-t="running" onclick="pickType(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><div class="tn">런닝</div><div class="td">시간 기록</div></div>
+      <div class="typeCard" data-t="running" onclick="pickType(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><div class="tn">전체 운동</div><div class="td">시간 기록</div></div>
     </div>
     <!-- 런닝 선택시 바로 시간입력 + 키보드 -->
     <div id="inp-running" class="hidden">
@@ -682,7 +694,7 @@ function toggleQuick(type){
   const btn=document.getElementById(type+'ToggleBtn');
   const isOpen=panel.classList.contains('open');
   // 다른 것 닫기
-  ['steps','inbody'].forEach(t=>{
+  ['run','steps','inbody'].forEach(t=>{
     document.getElementById('qPanel-'+t).classList.remove('open');
     document.getElementById(t+'ToggleBtn').classList.remove('open');
   });
@@ -811,7 +823,7 @@ function openRegModal(idx){
   document.getElementById('inp-running').classList.add('hidden');
   document.getElementById('regRunTime').value='';
   document.getElementById('mRegTitle').textContent=`등록 — ${ampmKr(p.ampm)} ${p.dateStr}`;
-  document.getElementById('mRegPreview').innerHTML=`<img src="${p.dataUrl}" style="width:100%;height:130px;object-fit:cover;border-radius:12px">`;
+  document.getElementById('mRegPreview').innerHTML=`<img src="${p.dataUrl}" style="width:100%;height:220px;object-fit:cover;border-radius:14px">`;
   openModal('mReg');
 }
 function pickType(el){
@@ -836,6 +848,27 @@ async function doRegister(){
     const t=parseInt(document.getElementById('regRunTime').value);
     if(!t||t<1){toast('시간을 입력해주세요');return;}
     rec.runTime=t;
+    // 기존 런닝 기록 확인 (사진 없는 직접입력)
+    allPhotos=await dbAll('photos');
+    const ex=allPhotos.find(q=>q.type==='running'&&q.dateStr===p.dateStr&&q.ampm===p.ampm&&!q.dataUrl);
+    if(ex){
+      const doAdd=await new Promise(res=>{
+        showConfirm(
+          '운동 기록 추가',
+          `${p.dateStr} ${p.ampm==='am'?'오전':'오후'} 이미 ${ex.runTime}분 기록이 있어요.
+${t}분을 추가해서 ${ex.runTime+t}분으로 할까요?`,
+          ()=>res(true)
+        );
+        setTimeout(()=>{
+          const ok=document.querySelector('.confirmOk');
+          if(ok) ok.textContent='추가';
+          // 취소시 res(false)
+          const cancel=document.querySelector('.confirmCancel');
+          if(cancel){const orig=cancel.onclick;cancel.onclick=()=>{res(false);if(orig)orig();};}
+        },50);
+      });
+      if(doAdd){ex.runTime=ex.runTime+t;await dbPut('photos',ex);}
+    }
   }
   await dbPut('photos',rec);
   pendingPhotos.splice(curPendIdx,1);
@@ -846,6 +879,41 @@ async function doRegister(){
 }
 
 // ── 빠른 입력 저장 ──
+async function saveQuickRun(){
+  const date=document.getElementById('qRunDate').value;
+  const ampm=document.getElementById('qRunAmpm').value;
+  const t=parseInt(document.getElementById('qRunTime').value);
+  if(!date){toast('날짜를 선택해주세요');return;}
+  if(!t||t<1){toast('시간을 입력해주세요');return;}
+  allPhotos=await dbAll('photos');
+  const ex=allPhotos.find(p=>p.type==='running'&&p.dateStr===date&&p.ampm===ampm);
+  if(ex){
+    // 기존 기록 있으면 추가할지 물어보기
+    showConfirm(
+      '운동 기록 추가',
+      `${date} ${ampm==='am'?'오전':'오후'} 이미 ${ex.runTime}분 기록이 있어요.\n${t}분을 추가해서 ${ex.runTime+t}분으로 할까요?`,
+      async()=>{
+        ex.runTime=ex.runTime+t;
+        await dbPut('photos',ex);
+        document.getElementById('qRunTime').value='';
+        toast(`${ex.runTime}분으로 합산 저장!`);
+        allPhotos=await dbAll('photos');
+        if(document.getElementById('pg-cal').classList.contains('active')) renderCalendar();
+      }
+    );
+    // 확인 버튼 텍스트 변경
+    setTimeout(()=>{
+      const ok=document.querySelector('.confirmOk');
+      if(ok) ok.textContent='추가';
+    },50);
+  } else {
+    await dbPut('photos',{id:'r'+Date.now(),dateStr:date,ampm,type:'running',runTime:t,ts:Date.now()});
+    document.getElementById('qRunTime').value='';
+    toast('운동 저장!');
+    allPhotos=await dbAll('photos');
+    if(document.getElementById('pg-cal').classList.contains('active')) renderCalendar();
+  }
+}
 async function saveQuickSteps(){
   const date=document.getElementById('qStepsDate').value;
   const ampm=document.getElementById('qStepsAmpm').value;
@@ -913,8 +981,10 @@ async function renderCalendar(){
     const hasAm=dp.some(p=>p.ampm==='am'&&p.type==='running');
     const hasPm=dp.some(p=>p.ampm==='pm'&&p.type==='running');
     const dots=(hasAm?'<div class="calDot am"></div>':'')+(hasPm?'<div class="calDot pm"></div>':'');
-    const rAm=dp.find(p=>p.type==='running'&&p.ampm==='am');
-    const rPm=dp.find(p=>p.type==='running'&&p.ampm==='pm');
+    const rAmList=dp.filter(p=>p.type==='running'&&p.ampm==='am');
+    const rPmList=dp.filter(p=>p.type==='running'&&p.ampm==='pm');
+    const rAm=rAmList.length?{...rAmList[0],runTime:rAmList.reduce((a,b)=>a+(b.runTime||0),0),id:rAmList[0].id}:null;
+    const rPm=rPmList.length?{...rPmList[0],runTime:rPmList.reduce((a,b)=>a+(b.runTime||0),0),id:rPmList[0].id}:null;
     const stE=dp.find(p=>p.type==='steps');
     const steps=stE?stE.steps:0;
     const pct=Math.min(100,Math.round(steps/stepsGoal*100));
@@ -1022,8 +1092,8 @@ async function openCalDetail(ds){
   const ib=dp.find(p=>p.type==='inbody');
   const myCount=dp.filter(p=>p.type==='myphoto').length;
   if(myCount) rows+=`<div class="calDetailRow"><span class="calDetailKey">📷 내 사진</span><span class="calDetailVal">${myCount}장</span></div>`;
-  if(rAm) rows+=`<div class="calDetailRow"><span class="calDetailKey">🏃 오전 런닝</span><span class="calDetailVal">${rAm.runTime}분<button class="editBtn" onclick="openEditModal('${rAm.id}')">수정</button></span></div>`;
-  if(rPm) rows+=`<div class="calDetailRow"><span class="calDetailKey">🏃 오후 런닝</span><span class="calDetailVal">${rPm.runTime}분<button class="editBtn" onclick="openEditModal('${rPm.id}')">수정</button></span></div>`;
+  if(rAm) rows+=`<div class="calDetailRow"><span class="calDetailKey">🏃 오전 운동</span><span class="calDetailVal">${rAm.runTime}분<button class="editBtn" onclick="openEditModal('${rAm.id}')">수정</button></span></div>`;
+  if(rPm) rows+=`<div class="calDetailRow"><span class="calDetailKey">🏃 오후 운동</span><span class="calDetailVal">${rPm.runTime}분<button class="editBtn" onclick="openEditModal('${rPm.id}')">수정</button></span></div>`;
   if(st) rows+=`<div class="calDetailRow"><span class="calDetailKey">👣 걸음수</span><span class="calDetailVal">${st.steps.toLocaleString()}<button class="editBtn" onclick="openEditModal('${st.id}')">수정</button></span></div>`;
   if(ib) rows+=`<div class="calDetailRow"><span class="calDetailKey">💪 인바디</span><span class="calDetailVal">${ib.weight}kg · ${ib.muscle}kg · ${ib.fat}kg</span></div>`;
   document.getElementById('mCalDetailRows').innerHTML=rows||'<p style="color:var(--text3);font-size:13px;text-align:center;padding:10px">데이터 없음</p>';
@@ -1120,7 +1190,7 @@ function buildPvInfo(p){
   if(p.type==='myphoto'){
     // 내사진: 런닝으로 이동 + 삭제
     btns=`<div style="display:flex;gap:8px;margin-top:10px">
-      <button class="pvEditBtn" style="flex:1" onclick="movePhotoType('${p.id}','running')">🏃 런닝으로</button>
+      <button class="pvEditBtn" style="flex:1" onclick="movePhotoType('${p.id}','running')">🏃 운동으로</button>
       <button class="pvEditBtn" style="flex:1;border-color:rgba(239,68,68,.6);color:#ef4444" onclick="confirmDelete('${p.id}')">🗑 삭제</button>
     </div>`;
   } else if(p.type==='running'){
@@ -1746,6 +1816,7 @@ async function init(){
   if(dm?.value){darkMode=true;document.documentElement.setAttribute('data-theme','dark');document.getElementById('icoSun').style.display='none';document.getElementById('icoMoon').style.display='';}
   const sg=await dbGet('settings','stepsGoal');if(sg?.value) stepsGoal=sg.value;
   const today=toDateStr(new Date());
+  document.getElementById('qRunDate').value=today;
   document.getElementById('qStepsDate').value=today;
   document.getElementById('qIbDate').value=today;
   renderSoberDay();
