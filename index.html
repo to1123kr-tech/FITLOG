@@ -857,15 +857,9 @@ async function doRegister(){
           '운동 기록 추가',
           `${p.dateStr} ${p.ampm==='am'?'오전':'오후'} 이미 ${ex.runTime}분 기록이 있어요.
 ${t}분을 추가해서 ${ex.runTime+t}분으로 할까요?`,
-          ()=>res(true)
+          ()=>res(true),
+          '추가'
         );
-        setTimeout(()=>{
-          const ok=document.querySelector('.confirmOk');
-          if(ok) ok.textContent='추가';
-          // 취소시 res(false)
-          const cancel=document.querySelector('.confirmCancel');
-          if(cancel){const orig=cancel.onclick;cancel.onclick=()=>{res(false);if(orig)orig();};}
-        },50);
       });
       if(doAdd){ex.runTime=ex.runTime+t;await dbPut('photos',ex);}
     }
@@ -899,13 +893,9 @@ async function saveQuickRun(){
         toast(`${ex.runTime}분으로 합산 저장!`);
         allPhotos=await dbAll('photos');
         if(document.getElementById('pg-cal').classList.contains('active')) renderCalendar();
-      }
+      },
+      '추가'
     );
-    // 확인 버튼 텍스트 변경
-    setTimeout(()=>{
-      const ok=document.querySelector('.confirmOk');
-      if(ok) ok.textContent='추가';
-    },50);
   } else {
     await dbPut('photos',{id:'r'+Date.now(),dateStr:date,ampm,type:'running',runTime:t,ts:Date.now()});
     document.getElementById('qRunTime').value='';
@@ -1465,17 +1455,21 @@ async function openEditModal(id){
 }
 // ── 삭제 확인 ──
 let _confirmCb=null;
-function showConfirm(title,msg,cb){
+function showConfirm(title,msg,cb,okLabel){
   document.getElementById('confirmTitle').textContent=title;
   document.getElementById('confirmMsg').textContent=msg;
+  // 확인 버튼 텍스트 (기본: 확인)
+  document.querySelector('.confirmOk').textContent=okLabel||'확인';
   _confirmCb=cb;
   document.getElementById('confirmModal').classList.add('open');
 }
 function confirmOk(){
+  document.querySelector('.confirmOk').textContent='확인'; // 복원
   document.getElementById('confirmModal').classList.remove('open');
   if(_confirmCb){_confirmCb();_confirmCb=null;}
 }
 function confirmCancel(){
+  document.querySelector('.confirmOk').textContent='확인'; // 복원
   document.getElementById('confirmModal').classList.remove('open');
   _confirmCb=null;
 }
