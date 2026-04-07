@@ -381,14 +381,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
     <!-- 업로드 -->
     <div class="page" id="pg-upload">
       <!-- 앱 바로가기 -->
-      <div class="appShortcutRow" style="padding:12px 0 0;margin:0 0 4px;">
-        <button class="appShortcutBtn" onclick="openSamsungHealth()">
-          <span class="appIcon">💚</span>
-          <span>삼성헬스</span>
-        </button>
-        <button class="appShortcutBtn" onclick="openXiHome()">
-          <span class="appIcon">🏠</span>
-          <span>자이홈</span>
+      <div style="padding:12px 0 4px;">
+        <button onclick="openXiHome()" style="width:100%;padding:14px;border-radius:16px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:var(--shadow);transition:all .2s;">
+          <span style="font-size:28px;">🏠</span>
+          <span>자이홈 열기</span>
         </button>
       </div>
       <div class="upZone" id="upZone">
@@ -758,16 +754,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 <div id="toast"></div>
 
 <script>
-
-// ── 앱 바로가기 (stable PWA version) ──
-function openSamsungHealth(){
-  window.location.href = "intent://#Intent;package=com.sec.android.app.shealth;end";
-}
-function openXiHome(){
-  window.location.href = "intent://#Intent;package=com.gsenc.xihome;end";
-}
-
-
 // ── DB ──
 let db;
 async function initDB(){
@@ -1886,6 +1872,15 @@ function doExit(){
 }
 
 // ── 앱 바로가기 ──
+function openSamsungHealth(){
+  // 삼성헬스 바로 실행
+  location.href = "samsunghealth://";
+}
+function openXiHome(){
+  // 자이홈 바로 실행
+  location.href = "xihome://";
+}
+
 // ── 인바디 사진 뷰어 ──
 (()=>{
   let startY=0, curY=0, imgH=0, wrapH=200;
