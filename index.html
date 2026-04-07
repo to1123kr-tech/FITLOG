@@ -758,6 +758,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 <div id="toast"></div>
 
 <script>
+
+// ── 앱 바로가기 (stable PWA version) ──
+function openSamsungHealth(){
+  window.location.href = "intent://#Intent;package=com.sec.android.app.shealth;end";
+}
+function openXiHome(){
+  window.location.href = "intent://#Intent;package=com.gsenc.xihome;end";
+}
+
+
 // ── DB ──
 let db;
 async function initDB(){
@@ -1876,19 +1886,6 @@ function doExit(){
 }
 
 // ── 앱 바로가기 ──
-function openSamsungHealth(){
-  // 삼성헬스 정확한 패키지명으로 실행
-  const a = document.createElement('a');
-  a.href = 'intent:#Intent;package=com.sec.android.app.shealth;end';
-  a.click();
-}
-function openXiHome(){
-  // 자이홈 패키지명: com.gsenc.xihome
-  const a = document.createElement('a');
-  a.href = 'intent:#Intent;package=com.gsenc.xihome;end';
-  a.click();
-}
-
 // ── 인바디 사진 뷰어 ──
 (()=>{
   let startY=0, curY=0, imgH=0, wrapH=200;
