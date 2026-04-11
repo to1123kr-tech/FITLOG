@@ -758,11 +758,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 let db;
 async function initDB(){
   return new Promise((res,rej)=>{
-    const r=indexedDB.open('fitlog5',1);
+    const r=indexedDB.open('fitlog5',2);
     r.onupgradeneeded=e=>{
       const d=e.target.result;
       if(!d.objectStoreNames.contains('photos')) d.createObjectStore('photos',{keyPath:'id'});
       if(!d.objectStoreNames.contains('settings')) d.createObjectStore('settings',{keyPath:'key'});
+      if(!d.objectStoreNames.contains('pending')) d.createObjectStore('pending',{keyPath:'id'});
     };
     r.onsuccess=e=>{db=e.target.result;res();};r.onerror=rej;
   });
@@ -909,7 +910,9 @@ async function handleFiles(e){
     if(pendingPhotos.some(p=>p._key===key)||allPhotos.some(p=>p._key===key)){dup++;continue;}
     const exifDt=await parseExifDate(f);
     const id='p'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
-    pendingPhotos.push({id,dataUrl:await readDataUrl(f),dateStr:toDateStr(exifDt),ampm:getAmPm(exifDt),name:f.name,_key:key});
+    const pendItem={id,dataUrl:await readDataUrl(f),dateStr:toDateStr(exifDt),ampm:getAmPm(exifDt),name:f.name,_key:key};
+    pendingPhotos.push(pendItem);
+    await dbPut('pending',pendItem);
     added++;
   }
   if(dup) toast(`${dup}장 중복 제외`);
@@ -928,7 +931,12 @@ function renderPendingList(){
       <button class="pendDel" onclick="event.stopPropagation();removePend(${i})">✕</button>
     </div>`).join('');
 }
-function removePend(i){pendingPhotos.splice(i,1);renderPendingList();}
+async function removePend(i){
+  const p=pendingPhotos[i];
+  if(p) await dbDel('pending',p.id);
+  pendingPhotos.splice(i,1);
+  renderPendingList();
+}
 
 // ── 등록 모달 ──
 function openRegModal(idx){
@@ -969,6 +977,8 @@ async function doRegister(){
     }
   }
   await dbPut('photos',rec);
+  const removedPend=pendingPhotos[curPendIdx];
+  if(removedPend) await dbDel('pending',removedPend.id);
   pendingPhotos.splice(curPendIdx,1);
   closeModal('mReg');toast('등록 완료!');renderPendingList();
   allPhotos=await dbAll('photos');
@@ -1007,6 +1017,40 @@ async function saveQuickRun(){
     allPhotos=await dbAll('photos');
     if(document.getElementById('pg-cal').classList.contains('active')) renderCalendar();
   }
+}
+function openStepsInput(dateStr){
+  // 걸음수 빠른입력 모달
+  const existing=allPhotos.find(p=>p.type==='steps'&&p.dateStr===dateStr);
+  const cur=existing?existing.steps:'';
+  showConfirm(
+    `👣 ${dateStr} 걸음수`,
+    '',
+    async()=>{
+      const val=parseInt(document.getElementById('inlineStepsInput').value);
+      if(!val||val<0){toast('걸음수를 입력해주세요');return;}
+      const ex=allPhotos.find(p=>p.type==='steps'&&p.dateStr===dateStr);
+      await dbPut('photos',{id:ex?ex.id:'s'+Date.now(),dateStr,ampm:'am',type:'steps',steps:val,ts:Date.now()});
+      toast('걸음수 저장!');
+      allPhotos=await dbAll('photos');
+      renderCalendar();
+    },
+    existing?'수정':'저장'
+  );
+  // 모달 메시지 영역에 입력칸 삽입
+  setTimeout(()=>{
+    const msg=document.getElementById('confirmMsg');
+    if(msg){
+      msg.innerHTML=`<input id="inlineStepsInput" type="number" inputmode="numeric" placeholder="걸음수 입력" autocomplete="off"
+        value="${cur}"
+        style="width:100%;padding:14px;border-radius:12px;border:1px solid var(--border);
+        background:var(--bg3);color:var(--text);font-size:22px;font-weight:700;
+        text-align:center;outline:none;font-family:inherit;margin-top:6px;">`;
+      setTimeout(()=>{
+        const inp=document.getElementById('inlineStepsInput');
+        if(inp){inp.focus();inp.select();}
+      },50);
+    }
+  },50);
 }
 async function saveQuickSteps(){
   const date=document.getElementById('qStepsDate').value;
@@ -1097,8 +1141,8 @@ async function renderCalendar(){
     const stepClr=steps===0?'transparent':achieved?'rgba(139,92,246,.8)':'rgba(139,92,246,.22)';
     const numClr=achieved?'var(--text)':'var(--text3)';
     const bar=steps
-      ?`<div class="calStepBox"><div class="calStepFill" style="width:${pct}%;background:${stepClr}"></div><div class="calStepNum" style="color:${numClr}">${steps.toLocaleString()}</div></div>`
-      :`<div class="calStepBox calStepEmpty"></div>`;
+      ?`<div class="calStepBox" onclick="event.stopPropagation();openStepsInput('${ds}')" style="cursor:pointer"><div class="calStepFill" style="width:${pct}%;background:${stepClr}"></div><div class="calStepNum" style="color:${numClr}">${steps.toLocaleString()}</div></div>`
+      :`<div class="calStepBox calStepEmpty" onclick="event.stopPropagation();openStepsInput('${ds}')" style="cursor:pointer;opacity:.45;"></div>`;
     html+=`<div class="${cls}" onclick="openCalDetail('${ds}')"><div class="calDayRow"><div class="calDay">${d}</div>${dots}</div><div class="calInfo">${info}</div>${bar}</div>`;
   }
   grid.innerHTML=html;
@@ -2366,6 +2410,17 @@ async function init(){
   renderCheer();
   await checkBackup();
   allPhotos=await dbAll('photos');
+  // 대기중 사진 복원
+  const savedPending=await dbAll('pending');
+  if(savedPending.length){
+    // 이미 등록된 사진은 제외
+    pendingPhotos=savedPending.filter(p=>!allPhotos.some(a=>a._key===p._key));
+    // DB에서도 이미 등록된 것 정리
+    for(const p of savedPending){
+      if(allPhotos.some(a=>a._key===p._key)) await dbDel('pending',p.id);
+    }
+    if(pendingPhotos.length) renderPendingList();
+  }
   renderCalendar();
 }
 init();
