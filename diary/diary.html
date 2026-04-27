@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="나의 기록">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600&family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
 :root{
   --bg:#f7f4ef;--surface:#fff;--surface2:#f0ede7;--border:#e2dbd0;
   --text:#231f1a;--muted:#8a7d6b;
@@ -25,7 +25,26 @@
   --shadow:0 2px 16px rgba(35,31,26,.08);
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;padding-bottom:env(safe-area-inset-bottom)}
+body{font-family:'Gowun Dodum',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;padding-bottom:env(safe-area-inset-bottom)}
+
+/* ─── 제목 그라데이션 애니메이션 ─── */
+@keyframes gradMove{
+  0%{background-position:0% 50%}
+  50%{background-position:100% 50%}
+  100%{background-position:0% 50%}
+}
+.title-grad{
+  font-family:'Jua',sans-serif;
+  font-size:26px;
+  background:linear-gradient(90deg,#ff6b6b,#ff9f43,#f7c948,#6bcb77,#4d96ff,#c77dff,#ff6b6b);
+  background-size:300% 300%;
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  background-clip:text;
+  animation:gradMove 3s ease infinite;
+  letter-spacing:-.5px;
+  line-height:1.2;
+}
 
 /* ─── 헤더 ─── */
 .header{
@@ -35,9 +54,8 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   padding:13px 15px 10px;
 }
 .header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-.header h1{font-family:'Noto Serif KR',serif;font-size:19px;font-weight:600;letter-spacing:-.3px}
 .hbtns{display:flex;gap:7px}
-.hbtn{font-size:12px;border:none;border-radius:16px;padding:6px 12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;font-weight:500}
+.hbtn{font-size:12px;border:none;border-radius:16px;padding:6px 12px;cursor:pointer;font-family:'Gowun Dodum',sans-serif;font-weight:500}
 .hbtn-backup{color:var(--blue);background:var(--blue-soft)}
 .hbtn-today{color:var(--accent);background:var(--accent-soft)}
 
@@ -51,7 +69,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .dday-box.green{background:var(--green-soft);border-color:#b3d9bf}
 .dday-box.amber{background:var(--amber-soft);border-color:#e8cfa0}
 .dday-lbl{font-size:11px;color:var(--muted)}
-.dday-num{font-family:'Noto Serif KR',serif;font-size:21px;font-weight:600}
+.dday-num{font-family:'Jua',sans-serif;font-size:21px;font-weight:600}
 .dday-num.green{color:var(--green)}
 .dday-num.amber{color:var(--amber)}
 .dday-sub{font-size:10px;color:var(--muted)}
@@ -69,7 +87,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   display:flex;flex-direction:column;align-items:center;gap:2px;
   padding:7px 2px;border-radius:12px;
   color:var(--muted);font-size:11px;cursor:pointer;
-  font-family:'Noto Sans KR',sans-serif;
+  font-family:'Gowun Dodum',sans-serif;
 }
 .tabbtn .icon{font-size:20px;line-height:1}
 .tabbtn.active{color:var(--accent);background:var(--accent-soft);font-weight:700}
@@ -83,7 +101,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 
 /* ─── 달력 ─── */
 .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-.cal-nav b{font-family:'Noto Serif KR',serif;font-size:17px;font-weight:600}
+.cal-nav b{font-family:'Jua',sans-serif;font-size:17px;font-weight:600}
 .cal-arrow{background:var(--surface2);border:none;border-radius:50%;width:34px;height:34px;font-size:19px;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center}
 .cal-arrow:active{background:var(--border)}
 .cal-week{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:4px}
@@ -123,7 +141,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 /* ─── 입력 폼 ─── */
 .form-label{font-size:13px;color:var(--muted);display:block;margin:12px 0 6px}
 .form-label:first-child{margin-top:0}
-.form-date{width:100%;border:1px solid var(--border);border-radius:12px;padding:10px 12px;font-size:15px;background:var(--surface);color:var(--text);font-family:'Noto Sans KR',sans-serif}
+.form-date{width:100%;border:1px solid var(--border);border-radius:12px;padding:10px 12px;font-size:15px;background:var(--surface);color:var(--text);font-family:'Gowun Dodum',sans-serif}
 .score-row{display:flex;gap:10px}
 .score-row>div{flex:1;display:flex;flex-direction:column;gap:6px}
 .score-row input[type=range]{width:100%;-webkit-appearance:none;height:6px;border-radius:3px;outline:none;cursor:pointer}
@@ -131,7 +149,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .score-slider-pain{background:linear-gradient(to right,var(--green),var(--amber),var(--red))}
 .score-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;border:2px solid var(--accent);box-shadow:0 1px 4px rgba(0,0,0,.15)}
 .score-display{font-size:18px;font-weight:700;color:var(--accent);text-align:center}
-.diary-ta{width:100%;border:1px solid var(--border);border-radius:14px;padding:12px;font-size:15px;line-height:1.8;min-height:140px;resize:vertical;font-family:'Noto Sans KR',sans-serif;color:var(--text);background:var(--surface)}
+.diary-ta{width:100%;border:1px solid var(--border);border-radius:14px;padding:12px;font-size:15px;line-height:1.8;min-height:140px;resize:vertical;font-family:'Gowun Dodum',sans-serif;color:var(--text);background:var(--surface)}
 .diary-ta::placeholder{color:#ccc}
 .photo-add-btn{width:70px;height:70px;border:2px dashed var(--border);border-radius:12px;background:var(--surface2);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:22px;color:var(--muted);flex-shrink:0}
 .photo-add-btn span{font-size:10px;margin-top:2px}
@@ -144,7 +162,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .form-actions{display:flex;gap:8px;margin-top:16px}
 
 /* ─── 버튼 ─── */
-.btn{border:none;border-radius:14px;padding:12px 16px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;flex:1}
+.btn{border:none;border-radius:14px;padding:12px 16px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Gowun Dodum',sans-serif;flex:1}
 .btn-primary{background:var(--accent);color:#fff}
 .btn-gray{background:var(--surface2);color:var(--text)}
 .btn-green{background:var(--green-soft);color:var(--green)}
@@ -153,7 +171,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .btn:active{opacity:.85}
 
 /* ─── 글 목록 ─── */
-.search-input{width:100%;border:1.5px solid var(--border);border-radius:14px;padding:11px 14px;font-size:15px;background:var(--surface);font-family:'Noto Sans KR',sans-serif;color:var(--text);outline:none;transition:border-color .2s;box-shadow:var(--shadow);margin-bottom:0}
+.search-input{width:100%;border:1.5px solid var(--border);border-radius:14px;padding:11px 14px;font-size:15px;background:var(--surface);font-family:'Gowun Dodum',sans-serif;color:var(--text);outline:none;transition:border-color .2s;box-shadow:var(--shadow);margin-bottom:0}
 .search-input:focus{border-color:var(--accent)}
 .entry-card{background:var(--surface);border-radius:16px;border:1px solid var(--border);padding:14px;margin-bottom:10px;cursor:pointer;box-shadow:var(--shadow)}
 .entry-card:active{background:var(--surface2)}
@@ -171,7 +189,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 
 /* ─── 백업 ─── */
 .backup-info{font-size:13px;color:var(--muted);background:var(--surface2);border-radius:12px;padding:12px;margin-bottom:14px;text-align:center;line-height:1.7}
-.backup-row{display:flex;align-items:center;gap:12px;width:100%;padding:13px 14px;border:1px solid var(--border);border-radius:14px;background:var(--surface);cursor:pointer;text-align:left;font-family:'Noto Sans KR',sans-serif;margin-bottom:10px}
+.backup-row{display:flex;align-items:center;gap:12px;width:100%;padding:13px 14px;border:1px solid var(--border);border-radius:14px;background:var(--surface);cursor:pointer;text-align:left;font-family:'Gowun Dodum',sans-serif;margin-bottom:10px}
 .backup-row:active{background:var(--surface2)}
 .backup-row .bico{font-size:26px}
 .backup-row .btxt b{display:block;font-size:14px;font-weight:700;color:var(--text)}
@@ -193,7 +211,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .big-empty{text-align:center;color:var(--muted);padding:48px 20px}
 .big-empty .ico{font-size:44px;margin-bottom:10px}
 .big-empty p{font-size:14px}
-.section-title{font-family:'Noto Serif KR',serif;font-size:16px;font-weight:600;margin-bottom:12px;color:var(--text)}
+.section-title{font-family:'Jua',sans-serif;font-size:16px;font-weight:600;margin-bottom:12px;color:var(--text)}
 </style>
 </head>
 <body>
@@ -201,7 +219,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 <!-- ■ 헤더 -->
 <header class="header">
   <div class="header-top">
-    <h1>나의 기록 📘</h1>
+    <div class="title-grad">간암 너 해보자!! 💪</div>
     <div class="hbtns">
       <button class="hbtn hbtn-backup" onclick="showView('backup')">💾 백업</button>
       <button class="hbtn hbtn-today" onclick="goToday()">오늘</button>
@@ -294,7 +312,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 <div class="view" id="view-backup">
   <div class="card">
     <div class="section-title">💾 백업 / 복원</div>
-    <div class="backup-info" id="backup-info">용량 계산 중…</div>
+    <div class="backup-info" id="backup-info"></div>
 
     <button class="backup-row" onclick="doExport()">
       <span class="bico">📤</span>
@@ -605,17 +623,34 @@ function renderPhotos(){
 //  백업 / 복원
 // ══════════════════════════════════════════════════════
 function renderBackupInfo(){
-  const raw=localStorage.getItem(SK)||'{}';
-  const bytes=new Blob([raw]).size;
   const eCnt=Object.keys(db.entries).length, pCnt=db.photos.length;
+  const lastBackup=localStorage.getItem('last_backup_date')||'없음';
   document.getElementById('backup-info').innerHTML=
-    `기록 <b>${eCnt}일</b> · 사진 <b>${pCnt}장</b><br>저장 용량 <b>${(bytes/1024).toFixed(0)}KB</b> / 5MB 중 ${Math.round(bytes/52428)}%`;
+    `기록 <b>${eCnt}일</b> · 사진 <b>${pCnt}장</b><br>마지막 백업: <b>${lastBackup}</b>`;
+}
+function checkBackupReminder(){
+  const last=localStorage.getItem('last_backup_date');
+  if(!last){
+    // 기록이 하나라도 있으면 알림
+    if(Object.keys(db.entries).length>0){
+      setTimeout(()=>alert('💾 아직 백업을 한 번도 안 하셨어요!\n백업 탭에서 내보내기 해두세요.'),1000);
+    }
+    return;
+  }
+  const lastDate=new Date(last+'T00:00:00');
+  const now=new Date(); now.setHours(0,0,0,0);
+  const diff=Math.floor((now-lastDate)/86400000);
+  if(diff>=3){
+    setTimeout(()=>alert(`💾 마지막 백업이 ${diff}일 전이에요!\n백업 탭에서 내보내기 해두세요.`),1000);
+  }
 }
 function doExport(){
   const n=new Date(), fname=`나의기록_${n.getFullYear()}${pad(n.getMonth()+1)}${pad(n.getDate())}.json`;
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([JSON.stringify(db)],{type:'application/json'}));
   a.download=fname; a.click();
+  // 백업 날짜 저장
+  localStorage.setItem('last_backup_date', fmtDate(n));
   setTimeout(()=>alert(`📤 "${fname}" 저장!\n\n카카오톡 나에게 보내기로 다른 기기에 전송할 수 있어요.`),300);
 }
 function doImport(ev){
@@ -735,6 +770,7 @@ if('serviceWorker' in navigator){
 // ══════════════════════════════════════════════════════
 renderDdays();
 renderCal();
+checkBackupReminder();
 </script>
 </body>
 </html>
