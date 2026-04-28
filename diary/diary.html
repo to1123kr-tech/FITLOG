@@ -258,7 +258,7 @@ body{font-family:'Gowun Dodum',sans-serif;background:var(--bg);color:var(--text)
     <div class="cal-week"><div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div></div>
     <div class="cal-grid" id="cal-grid"></div>
     <div class="cal-actions">
-      <button class="btn btn-gray" onclick="goToday()" style="flex:0 0 auto;padding:10px 16px">오늘</button>
+      <button class="btn btn-gray" onclick="goToday()">오늘</button>
       <button class="btn btn-primary" onclick="openEditor(selDate)">✏️ 이 날 입력</button>
     </div>
   </div>
@@ -295,8 +295,8 @@ body{font-family:'Gowun Dodum',sans-serif;background:var(--bg);color:var(--text)
       <div class="photo-add-btn" onclick="document.getElementById('camera-input').click()">📷<span>카메라</span></div>
     </div>
     <div class="compress-note" id="compress-note"></div>
-    <input type="file" id="photo-input" accept="image/*" multiple onchange="onPhotoSelected(event)">
-    <input type="file" id="camera-input" accept="image/*" capture="environment" onchange="onPhotoSelected(event)">
+    <input type="file" id="photo-input" accept="image/*" multiple onchange="onPhotoSelected(event)" style="display:none">
+    <input type="file" id="camera-input" accept="image/*" capture="environment" onchange="onPhotoSelected(event)" style="display:none">
 
     <div class="form-actions">
       <button class="btn btn-gray" onclick="showView('cal')" style="flex:0 0 auto;padding:12px 16px">닫기</button>
@@ -499,13 +499,22 @@ function renderCalSummary(){
   if(e.cond!==undefined) badges.push(`<span class="badge badge-cond">컨디션 ${e.cond}</span>`);
   if(e.pain!==undefined&&e.pain>0) badges.push(`<span class="badge badge-pain">통증 ${e.pain}</span>`);
   if(photos.length) badges.push(`<span class="badge badge-photo">📷 ${photos.length}장</span>`);
-  const thumbs=photos.slice(0,5).map(p=>`<img src="${p.src}" onclick="openLb('${p.src}','${selDate}')">`).join('');
+  const thumbs=photos.slice(0,5).map(p=>`<img src="${p.src}" onclick="openLbById('${p.id}')" style="cursor:pointer">`).join('');
   box.innerHTML=`
     <div class="summary-date">${dateLbl(selDate)}</div>
     <div class="badges">${badges.join('')}</div>
     ${e.text?`<div class="summary-text">${escHtml(e.text)}</div>`:''}
     ${thumbs?`<div class="summary-photos">${thumbs}</div>`:''}
-    <div style="margin-top:10px"><button class="btn btn-primary" onclick="openEditor('${selDate}')">✏️ 수정하기</button></div>`;
+    <div style="margin-top:10px;display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="openEditor('${selDate}')">✏️ 수정하기</button>
+      <button class="btn btn-danger" style="flex:0 0 auto;padding:12px 14px" onclick="deleteDay('${selDate}')">🗑️ 삭제</button>
+    </div>`;
+}
+function deleteDay(ds){
+  if(!confirm(`${dateLbl(ds)}\n이 날 기록을 삭제할까요?\n(사진은 남습니다)`)) return;
+  delete db.entries[ds];
+  saveDb();
+  renderCal();
 }
 
 // ══════════════════════════════════════════════════════
@@ -639,25 +648,37 @@ function rmPending(i){ pendingPhotos.splice(i,1); renderPhotoRow(); }
 function renderList(){
   const q=(document.getElementById('search-input').value||'').trim();
   const box=document.getElementById('list-box');
-  const keys=Object.keys(db.entries).sort().reverse();
+
+  // entries + 사진만 있는 날짜 합치기
+  const allDates=new Set([
+    ...Object.keys(db.entries),
+    ...db.photos.map(p=>p.date)
+  ]);
+  const keys=[...allDates].sort().reverse();
+
   const rows=keys.filter(k=>{
-    const e=db.entries[k];
-    return !q||(e.text||'').includes(q)||k.includes(q);
-  }).map(k=>{
-    const e=db.entries[k];
+    const e=db.entries[k]||{};
     const photos=db.photos.filter(p=>p.date===k);
+    if(!q) return true;
+    return (e.text||'').includes(q)||k.includes(q);
+  }).map(k=>{
+    const e=db.entries[k]||{};
+    const photos=db.photos.filter(p=>p.date===k);
+    if(!e.text&&!(e.cond!==undefined)&&!photos.length) return '';
     const badges=[];
     if(e.cond!==undefined) badges.push(`<span class="badge badge-cond">컨디션 ${e.cond}</span>`);
     if(e.pain>0) badges.push(`<span class="badge badge-pain">통증 ${e.pain}</span>`);
     if(photos.length) badges.push(`<span class="badge badge-photo">📷${photos.length}</span>`);
-    const thumbs=photos.slice(0,3).map(p=>`<img src="${p.src}">`).join('');
+    const thumbs=photos.slice(0,3).map(p=>
+      `<img src="${p.src}" onclick="openLbById('${p.id}');event.stopPropagation();" style="cursor:pointer">`
+    ).join('');
     return `<div class="entry-card" onclick="selDate='${k}';openEditor('${k}')">
       <div class="entry-date">${dateLbl(k)}</div>
       <div class="badges">${badges.join('')}</div>
       ${e.text?`<div class="entry-text">${escHtml(e.text)}</div>`:''}
       ${thumbs?`<div class="entry-thumbs">${thumbs}</div>`:''}
     </div>`;
-  });
+  }).filter(Boolean);
   box.innerHTML=rows.length?rows.join(''):`<div class="big-empty"><div class="ico">📝</div><p>${q?'검색 결과 없음':'아직 기록이 없어요'}</p></div>`;
 }
 
@@ -868,14 +889,28 @@ function findExifSubDate(view,tiff,ifd,le){
 // ══════════════════════════════════════════════════════
 function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'); }
 
+// ── 뒤로가기 종료 확인 ──
+let backPressCount = 0;
+window.addEventListener('popstate', ()=>{
+  history.pushState(null, '', location.href);
+  backPressCount++;
+  if(backPressCount === 1){
+    // 토스트 메시지
+    const t = document.createElement('div');
+    t.textContent = '한 번 더 누르면 앱이 종료됩니다';
+    t.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.75);color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;z-index:9999;white-space:nowrap';
+    document.body.appendChild(t);
+    setTimeout(()=>{ document.body.removeChild(t); backPressCount=0; }, 2000);
+  } else if(backPressCount >= 2){
+    window.close(); // PWA에서는 앱 종료
+  }
+});
+history.pushState(null, '', location.href);
+
 // ── Service Worker 등록 ──
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
-
-// ══════════════════════════════════════════════════════
-//  초기화
-// ══════════════════════════════════════════════════════
 renderDdays();
 renderCal();
 checkBackupReminder();
