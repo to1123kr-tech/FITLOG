@@ -204,9 +204,16 @@ body{font-family:'Gowun Dodum',sans-serif;background:var(--bg);color:var(--text)
 /* ─── 사진 라이트박스 ─── */
 .lb{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:500;align-items:center;justify-content:center;flex-direction:column;padding:20px}
 .lb.open{display:flex}
+.lb img{max-width:100%;max-height:72vh;border-radius:12px;object-fit:contain}
+.lb.open{display:flex}
 .lb img{max-width:100%;max-height:80vh;border-radius:12px;object-fit:contain}
 .lb-close{position:absolute;top:16px;right:16px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:50%;width:40px;height:40px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.lb-cap{color:rgba(255,255,255,.7);font-size:13px;margin-top:10px}
+.lb-cap{color:rgba(255,255,255,.75);font-size:14px;margin-top:10px;font-family:'Jua',sans-serif}
+.lb-actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;justify-content:center}
+.lb-btn{border:none;border-radius:20px;padding:9px 18px;font-size:13px;cursor:pointer;font-family:'Gowun Dodum',sans-serif;font-weight:700}
+.lb-btn-date{background:rgba(255,255,255,.2);color:#fff}
+.lb-btn-del{background:rgba(192,82,82,.85);color:#fff}
+.lb-date-input{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.4);border-radius:12px;padding:7px 10px;color:#fff;font-size:13px;margin-top:8px;display:none}
 
 /* ─── 공통 ─── */
 .big-empty{text-align:center;color:var(--muted);padding:48px 20px}
@@ -345,10 +352,11 @@ body{font-family:'Gowun Dodum',sans-serif;background:var(--bg);color:var(--text)
 </nav>
 
 <!-- ■ 라이트박스 -->
-<div class="lb" id="lb" onclick="closeLb()">
+<div class="lb" id="lb">
   <button class="lb-close" onclick="closeLb()">✕</button>
-  <img id="lb-img" src="" alt="">
+  <img id="lb-img" src="" alt="" onclick="void(0)">
   <div class="lb-cap" id="lb-cap"></div>
+  <div class="lb-actions" id="lb-actions"></div>
 </div>
 
 <script>
@@ -662,7 +670,7 @@ function renderPhotos(){
   if(!sorted.length){ grid.innerHTML=`<div class="big-empty" style="grid-column:1/-1"><div class="ico">🖼️</div><p>사진이 없어요</p></div>`; return; }
   grid.innerHTML=sorted.map(p=>{
     const d=parseDate(p.date), lbl=`${d.getMonth()+1}/${d.getDate()}`;
-    return `<div class="pg-item" onclick="openLb('${p.src}','${p.date}')">
+    return `<div class="pg-item" onclick="openLbById('${p.id}')">
       <img src="${p.src}" alt="">
       <div class="pg-date">${lbl}</div>
     </div>`;
@@ -729,12 +737,62 @@ function clearAll(){
 // ══════════════════════════════════════════════════════
 //  라이트박스
 // ══════════════════════════════════════════════════════
-function openLb(src,cap){
-  document.getElementById('lb-img').src=src;
-  document.getElementById('lb-cap').textContent=cap||'';
+// ── 라이트박스 ──
+let lbCurrentId = null;
+
+function openLbById(photoId){
+  const p = db.photos.find(x=>x.id===photoId);
+  if(!p) return;
+  lbCurrentId = photoId;
+  document.getElementById('lb-img').src = p.src;
+  document.getElementById('lb-cap').textContent = dateLbl(p.date);
+  document.getElementById('lb-actions').innerHTML = `
+    <button class="lb-btn lb-btn-date" onclick="showLbDateInput()">📅 날짜 수정</button>
+    <button class="lb-btn lb-btn-del" onclick="deleteLbPhoto()">🗑️ 삭제</button>
+    <div id="lb-date-wrap" style="display:none;width:100%;text-align:center;margin-top:4px">
+      <input type="date" id="lb-date-input" value="${p.date}"
+        style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.4);border-radius:12px;padding:7px 12px;color:#fff;font-size:14px;">
+      <button class="lb-btn lb-btn-date" style="margin-top:8px" onclick="saveLbDate()">✅ 저장</button>
+    </div>`;
   document.getElementById('lb').classList.add('open');
 }
-function closeLb(){ document.getElementById('lb').classList.remove('open'); }
+function openLb(src, cap){
+  // 글탭 썸네일용 (id 없이 호출될 때)
+  lbCurrentId = null;
+  document.getElementById('lb-img').src = src;
+  document.getElementById('lb-cap').textContent = cap||'';
+  document.getElementById('lb-actions').innerHTML = '';
+  document.getElementById('lb').classList.add('open');
+}
+function closeLb(){
+  document.getElementById('lb').classList.remove('open');
+  lbCurrentId = null;
+}
+function showLbDateInput(){
+  const wrap = document.getElementById('lb-date-wrap');
+  wrap.style.display = wrap.style.display==='none' ? 'block' : 'none';
+}
+function saveLbDate(){
+  if(!lbCurrentId) return;
+  const newDate = document.getElementById('lb-date-input').value;
+  if(!newDate) return;
+  const idx = db.photos.findIndex(x=>x.id===lbCurrentId);
+  if(idx<0) return;
+  db.photos[idx].date = newDate;
+  saveDb();
+  document.getElementById('lb-cap').textContent = dateLbl(newDate);
+  document.getElementById('lb-date-wrap').style.display='none';
+  renderPhotos();
+  alert(`📅 ${newDate} 로 날짜 변경 완료!`);
+}
+function deleteLbPhoto(){
+  if(!lbCurrentId) return;
+  if(!confirm('이 사진을 삭제할까요?')) return;
+  db.photos = db.photos.filter(x=>x.id!==lbCurrentId);
+  saveDb();
+  closeLb();
+  renderPhotos();
+}
 
 // ══════════════════════════════════════════════════════
 //  이미지 압축 (Canvas JPEG)
