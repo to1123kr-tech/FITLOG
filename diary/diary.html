@@ -124,15 +124,12 @@ body{font-family:'Gowun Dodum',sans-serif;background:var(--bg);color:var(--text)
 .cal-cell.sun .cnum{color:var(--red)}
 .cal-cell.sat .cnum{color:var(--accent)}
 .cal-cell .dot{width:5px;height:5px;border-radius:50%;background:var(--accent);margin-top:auto;margin-bottom:2px}
-.cal-cell .cond-ico{font-size:9px;line-height:1}
 .cal-actions{display:flex;gap:8px;margin-top:12px}
 
 /* 선택일 미리보기 */
 .summary-date{font-weight:700;font-size:15px;margin-bottom:8px}
 .badges{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
 .badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:500}
-.badge-cond{background:var(--accent-soft);color:var(--accent)}
-.badge-pain{background:var(--red-soft);color:var(--red)}
 .badge-photo{background:var(--amber-soft);color:var(--amber)}
 .summary-text{font-size:14px;line-height:1.7;color:var(--text);margin-bottom:8px}
 .summary-photos{display:flex;gap:6px;flex-wrap:wrap}
@@ -142,13 +139,6 @@ body{font-family:'Gowun Dodum',sans-serif;background:var(--bg);color:var(--text)
 .form-label{font-size:13px;color:var(--muted);display:block;margin:12px 0 6px}
 .form-label:first-child{margin-top:0}
 .form-date{width:100%;border:1px solid var(--border);border-radius:12px;padding:10px 12px;font-size:15px;background:var(--surface);color:var(--text);font-family:'Gowun Dodum',sans-serif}
-.score-row{display:flex;gap:10px}
-.score-row>div{flex:1;display:flex;flex-direction:column;gap:6px}
-.score-row input[type=range]{width:100%;-webkit-appearance:none;height:6px;border-radius:3px;outline:none;cursor:pointer}
-.score-slider-cond{background:linear-gradient(to right,var(--red),var(--amber),var(--green))}
-.score-slider-pain{background:linear-gradient(to right,var(--green),var(--amber),var(--red))}
-.score-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;border:2px solid var(--accent);box-shadow:0 1px 4px rgba(0,0,0,.15)}
-.score-display{font-size:18px;font-weight:700;color:var(--accent);text-align:center}
 .diary-ta{width:100%;border:1px solid var(--border);border-radius:14px;padding:12px;font-size:15px;line-height:1.8;min-height:140px;resize:vertical;font-family:'Gowun Dodum',sans-serif;color:var(--text);background:var(--surface)}
 .diary-ta::placeholder{color:#ccc}
 .photo-add-btn{width:70px;height:70px;border:2px dashed var(--border);border-radius:12px;background:var(--surface2);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:22px;color:var(--muted);flex-shrink:0}
@@ -271,20 +261,6 @@ body{font-family:'Gowun Dodum',sans-serif;background:var(--bg);color:var(--text)
     <div class="section-title" id="write-title">기록 입력</div>
     <label class="form-label">날짜</label>
     <input type="date" class="form-date" id="ed-date" onchange="onEdDateChange()">
-
-    <label class="form-label">상태</label>
-    <div class="score-row">
-      <div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">😊 컨디션</div>
-        <input type="range" class="score-slider-cond" id="ed-cond" min="0" max="10" value="5" oninput="document.getElementById('ed-cond-v').textContent=this.value">
-        <div class="score-display" id="ed-cond-v">5</div>
-      </div>
-      <div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">💢 통증</div>
-        <input type="range" class="score-slider-pain" id="ed-pain" min="0" max="10" value="0" oninput="document.getElementById('ed-pain-v').textContent=this.value">
-        <div class="score-display" id="ed-pain-v">0</div>
-      </div>
-    </div>
 
     <label class="form-label">내용</label>
     <textarea class="diary-ta" id="ed-text" placeholder="오늘 어떠셨나요? 편하게 적어주세요…"></textarea>
@@ -444,7 +420,6 @@ function moveMonth(n){
   if(calMonth>11){calMonth=0;calYear++;} if(calMonth<0){calMonth=11;calYear--;}
   renderCal();
 }
-// 달력 스와이프 (좌우로 밀어서 월 이동)
 let _calSwipeReady=false;
 function setupCalSwipe(){
   if(_calSwipeReady) return;
@@ -455,9 +430,7 @@ function setupCalSwipe(){
   grid.addEventListener('touchend',e=>{
     const dx=e.changedTouches[0].clientX-sx;
     const dy=e.changedTouches[0].clientY-sy;
-    if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>50){
-      moveMonth(dx<0?1:-1);
-    }
+    if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>50){moveMonth(dx<0?1:-1);}
   });
   _calSwipeReady=true;
 }
@@ -492,10 +465,7 @@ function renderCal(){
     const hasPhoto=db.photos.some(p=>p.date===ds);
 
     let inner=`<span class="cnum">${d}</span>`;
-    if(entry&&entry.cond!==undefined){
-      const ic=entry.cond>=7?'😊':entry.cond>=4?'😐':'😔';
-      inner+=`<span class="cond-ico">${ic}</span>`;
-    }
+
     if(entry||hasPhoto) inner+=`<span class="dot"></span>`;
     c.innerHTML=inner;
     c.onclick=()=>{ selDate=ds; renderCal(); };
@@ -510,12 +480,10 @@ function renderCalSummary(){
   const box=document.getElementById('cal-summary');
   const e=db.entries[selDate]||{};
   const photos=db.photos.filter(p=>p.date===selDate);
-  const hasAnything=e.text||(e.cond!==undefined)||photos.length;
+  const hasAnything=e.text||photos.length;
   if(!hasAnything){ box.style.display='none'; return; }
   box.style.display='block';
   const badges=[];
-  if(e.cond!==undefined) badges.push(`<span class="badge badge-cond">컨디션 ${e.cond}</span>`);
-  if(e.pain!==undefined&&e.pain>0) badges.push(`<span class="badge badge-pain">통증 ${e.pain}</span>`);
   if(photos.length) badges.push(`<span class="badge badge-photo">📷 ${photos.length}장</span>`);
   const thumbs=photos.slice(0,5).map(p=>`<img src="${p.src}" onclick="openLbById('${p.id}')" style="cursor:pointer">`).join('');
   box.innerHTML=`
@@ -547,10 +515,6 @@ function openEditor(ds){
   const e=db.entries[selDate]||{};
   document.getElementById('write-title').textContent=dateLbl(selDate)+' 기록';
   document.getElementById('ed-date').value=selDate;
-  document.getElementById('ed-cond').value=e.cond!==undefined?e.cond:5;
-  document.getElementById('ed-cond-v').textContent=e.cond!==undefined?e.cond:5;
-  document.getElementById('ed-pain').value=e.pain!==undefined?e.pain:0;
-  document.getElementById('ed-pain-v').textContent=e.pain!==undefined?e.pain:0;
   document.getElementById('ed-text').value=e.text||'';
   document.getElementById('compress-note').textContent='';
   pendingPhotos=[];
@@ -565,8 +529,6 @@ function saveEntry(){
   const ds=document.getElementById('ed-date').value||selDate;
   selDate=ds;
   db.entries[ds]={
-    cond:parseInt(document.getElementById('ed-cond').value),
-    pain:parseInt(document.getElementById('ed-pain').value),
     text:document.getElementById('ed-text').value.trim(),
     updatedAt:new Date().toISOString()
   };
@@ -682,11 +644,9 @@ function renderList(){
   }).map(k=>{
     const e=db.entries[k]||{};
     const photos=db.photos.filter(p=>p.date===k);
-    if(!e.text&&!(e.cond!==undefined)&&!photos.length) return '';
+    if(!e.text&&!photos.length) return '';
     const badges=[];
-    if(e.cond!==undefined) badges.push(`<span class="badge badge-cond">컨디션 ${e.cond}</span>`);
-    if(e.pain>0) badges.push(`<span class="badge badge-pain">통증 ${e.pain}</span>`);
-    if(photos.length) badges.push(`<span class="badge badge-photo">📷${photos.length}</span>`);
+      if(photos.length) badges.push(`<span class="badge badge-photo">📷${photos.length}</span>`);
     const thumbs=photos.slice(0,3).map(p=>
       `<img src="${p.src}" onclick="openLbById('${p.id}');event.stopPropagation();" style="cursor:pointer">`
     ).join('');
