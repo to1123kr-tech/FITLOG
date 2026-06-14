@@ -343,6 +343,42 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 ::-webkit-scrollbar{display:none;}
 </style>
 </head>
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+  import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+  const firebaseConfig = {
+    apiKey: "AIzaSyAYVVjoGbe7Tez7skPJgU0wdUhzY4EVhvo",
+    authDomain: "yoo-life.firebaseapp.com",
+    projectId: "yoo-life",
+    storageBucket: "yoo-life.firebasestorage.app",
+    messagingSenderId: "1024094896379",
+    appId: "1:1024094896379:web:c2df289bfa21f5c8eb305e"
+  };
+  const fbApp = initializeApp(firebaseConfig);
+  const fbDb = getFirestore(fbApp);
+  // 운동앱은 'workout' 컬렉션 사용 (일기앱과 분리)
+  const COL = 'workout';
+  // 전역으로 노출 (일반 script에서 사용)
+  window.FB = {
+    db: fbDb,
+    async put(o){
+      try{ await setDoc(doc(fbDb, COL, o.id), o); }catch(e){ console.warn('FB put 실패', e); }
+    },
+    async del(id){
+      try{ await deleteDoc(doc(fbDb, COL, id)); }catch(e){ console.warn('FB del 실패', e); }
+    },
+    async all(){
+      try{
+        const snap = await getDocs(collection(fbDb, COL));
+        const arr = [];
+        snap.forEach(d=>arr.push(d.data()));
+        return arr;
+      }catch(e){ console.warn('FB all 실패', e); return null; }
+    }
+  };
+  window.dispatchEvent(new Event('fb-ready'));
+</script>
 <body>
 <div id="app">
   <div id="hdr">
@@ -769,10 +805,19 @@ async function initDB(){
   });
 }
 const dbTx=(s,m='readonly')=>db.transaction(s,m).objectStore(s);
-const dbPut=(s,o)=>new Promise(r=>{dbTx(s,'readwrite').put(o).onsuccess=()=>r();});
+const _dbPutRaw=(s,o)=>new Promise(r=>{dbTx(s,'readwrite').put(o).onsuccess=()=>r();});
 const dbAll=(s)=>new Promise(r=>{dbTx(s).getAll().onsuccess=e=>r(e.target.result);});
 const dbGet=(s,k)=>new Promise(r=>{dbTx(s).get(k).onsuccess=e=>r(e.target.result);});
-const dbDel=(s,k)=>new Promise(r=>{dbTx(s,'readwrite').delete(k).onsuccess=()=>r();});
+const _dbDelRaw=(s,k)=>new Promise(r=>{dbTx(s,'readwrite').delete(k).onsuccess=()=>r();});
+// Firestore 동기화 래퍼 (photos만 서버 동기화, settings/pending은 로컬만)
+async function dbPut(s,o){
+  await _dbPutRaw(s,o);
+  if(s==='photos' && window.FB){ window.FB.put(o); } // 비동기, 기다리지 않음
+}
+async function dbDel(s,k){
+  await _dbDelRaw(s,k);
+  if(s==='photos' && window.FB){ window.FB.del(k); }
+}
 
 // ── 상태 ──
 let allPhotos=[],pendingPhotos=[];
@@ -874,14 +919,14 @@ function toDateStr(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padSta
 function getAmPm(d){return d.getHours()<12?'am':'pm';}
 function ampmKr(ap){return ap==='am'?'오전':'오후';}
 function fmtMin(m){if(!m)return '0분';const h=Math.floor(m/60);const min=m%60;return h>0?(min>0?`${h}시간 ${min}분`:`${h}시간`):`${min}분`;}
-// 이미지 리사이즈 압축 (긴 변 1080px, quality 0.82)
+// 이미지 리사이즈 압축 (긴 변 720px, quality 0.72 — Firestore 저장용)
 function readDataUrl(f){
   return new Promise(r=>{
     const fr=new FileReader();
     fr.onload=e=>{
       const img=new Image();
       img.onload=()=>{
-        const MAX=1080;
+        const MAX=720;
         let w=img.width,h=img.height;
         if(w>MAX||h>MAX){
           if(w>h){h=Math.round(h*MAX/w);w=MAX;}
@@ -890,7 +935,7 @@ function readDataUrl(f){
         const c=document.createElement('canvas');
         c.width=w;c.height=h;
         c.getContext('2d').drawImage(img,0,0,w,h);
-        r(c.toDataURL('image/jpeg',0.82));
+        r(c.toDataURL('image/jpeg',0.72));
       };
       img.src=e.target.result;
     };
@@ -2413,15 +2458,53 @@ async function init(){
   // 대기중 사진 복원
   const savedPending=await dbAll('pending');
   if(savedPending.length){
-    // 이미 등록된 사진은 제외
     pendingPhotos=savedPending.filter(p=>!allPhotos.some(a=>a._key===p._key));
-    // DB에서도 이미 등록된 것 정리
     for(const p of savedPending){
       if(allPhotos.some(a=>a._key===p._key)) await dbDel('pending',p.id);
     }
     if(pendingPhotos.length) renderPendingList();
   }
   renderCalendar();
+  // ── Firebase 동기화 (백그라운드) ──
+  syncFromFirebase();
+}
+
+// Firebase에서 데이터 받아 IndexedDB와 병합
+async function syncFromFirebase(){
+  // FB 준비 안됐으면 기다리기
+  if(!window.FB){
+    await new Promise(res=>{
+      window.addEventListener('fb-ready',res,{once:true});
+      setTimeout(res,3000); // 3초 타임아웃
+    });
+  }
+  if(!window.FB) return;
+  const serverData=await window.FB.all();
+  if(!serverData) return; // 오프라인 등
+  const localData=await dbAll('photos');
+  const localMap={}; localData.forEach(p=>localMap[p.id]=p);
+  const serverMap={}; serverData.forEach(p=>serverMap[p.id]=p);
+  let changed=false;
+  // 1) 서버에만 있는 것 → 로컬에 추가
+  for(const p of serverData){
+    if(!localMap[p.id]){
+      await _dbPutRaw('photos',p);
+      changed=true;
+    }
+  }
+  // 2) 로컬에만 있는 것 → 서버에 올림 (기존 데이터 마이그레이션)
+  for(const p of localData){
+    if(!serverMap[p.id]){
+      window.FB.put(p);
+    }
+  }
+  if(changed){
+    allPhotos=await dbAll('photos');
+    renderCalendar();
+    if(document.getElementById('pg-photo').classList.contains('active')) renderPhotoPage();
+    if(document.getElementById('pg-inbody').classList.contains('active')) renderInbodyPage();
+    toast('☁️ 동기화 완료');
+  }
 }
 init();
 </script>
