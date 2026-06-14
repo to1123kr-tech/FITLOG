@@ -1872,8 +1872,7 @@ document.getElementById('restoreInput').addEventListener('change',async e=>{
   e.target.value='';
 });
 async function checkBackup(){
-  const last=await dbGet('settings','lastBackup');
-  if(last&&(Date.now()-last.value)/86400000>=3) document.getElementById('bkBanner').classList.remove('hidden');
+  // 자동 동기화(Firebase) 사용 중이므로 백업 알림 배너 표시 안 함
 }
 
 // ── 모달 ──
