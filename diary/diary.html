@@ -212,6 +212,43 @@ body{font-family:'Gowun Dodum',sans-serif;background:var(--bg);color:var(--text)
 .section-title{font-family:'Jua',sans-serif;font-size:16px;font-weight:600;margin-bottom:12px;color:var(--text)}
 </style>
 </head>
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+  import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+  const firebaseConfig = {
+    apiKey: "AIzaSyAYVVjoGbe7Tez7skPJgU0wdUhzY4EVhvo",
+    authDomain: "yoo-life.firebaseapp.com",
+    projectId: "yoo-life",
+    storageBucket: "yoo-life.firebasestorage.app",
+    messagingSenderId: "1024094896379",
+    appId: "1:1024094896379:web:c2df289bfa21f5c8eb305e"
+  };
+  const fbApp = initializeApp(firebaseConfig);
+  const fbDb = getFirestore(fbApp);
+  const COL = 'diary'; // 일기앱은 diary 컬렉션 (운동앱과 분리)
+  window.FB = {
+    db: fbDb,
+    // 텍스트 일기 전체 저장 (entries 문서 하나)
+    async putEntries(entriesObj){
+      try{ await setDoc(doc(fbDb, COL, 'entries'), {data: entriesObj}); }catch(e){ console.warn('FB entries 실패', e); }
+    },
+    async getEntries(){
+      try{ const s=await getDoc(doc(fbDb, COL, 'entries')); return s.exists()?s.data().data:null; }catch(e){ console.warn(e); return null; }
+    },
+    // 사진 한 장씩 저장
+    async putPhoto(p){
+      try{ await setDoc(doc(fbDb, COL+'_photos', p.id), p); }catch(e){ console.warn('FB photo 실패', e); }
+    },
+    async delPhoto(id){
+      try{ await deleteDoc(doc(fbDb, COL+'_photos', id)); }catch(e){ console.warn(e); }
+    },
+    async allPhotos(){
+      try{ const s=await getDocs(collection(fbDb, COL+'_photos')); const a=[]; s.forEach(d=>a.push(d.data())); return a; }catch(e){ console.warn(e); return null; }
+    }
+  };
+  window.dispatchEvent(new Event('fb-ready'));
+</script>
 <body>
 
 <!-- ■ 헤더 -->
@@ -360,7 +397,18 @@ function loadDb(){
   }catch(e){}
   return {entries:{}, photos:[]};
 }
-function saveDb(){ localStorage.setItem(SK, JSON.stringify(db)); }
+function saveDb(){
+  localStorage.setItem(SK, JSON.stringify(db));
+  // Firestore에 텍스트 일기 동기화 (사진 제외, 가벼움)
+  if(window.FB){ window.FB.putEntries(db.entries); }
+}
+// 사진을 서버에도 저장
+function syncPhotoToServer(p){
+  if(window.FB){ window.FB.putPhoto(p); }
+}
+function syncPhotoDeleteToServer(id){
+  if(window.FB){ window.FB.delPhoto(id); }
+}
 function uid(){ return Math.random().toString(36).slice(2)+Date.now().toString(36); }
 
 // ══════════════════════════════════════════════════════
@@ -532,7 +580,7 @@ function saveEntry(){
     text:document.getElementById('ed-text').value.trim(),
     updatedAt:new Date().toISOString()
   };
-  pendingPhotos.forEach(p=>db.photos.push(p));
+  pendingPhotos.forEach(p=>{db.photos.push(p);syncPhotoToServer(p);});
   pendingPhotos=[];
   saveDb();
   // 저장한 날짜로 달력 이동
@@ -564,7 +612,7 @@ async function onPhotoSelected(ev){
     if(exifDate && !firstExifDate) firstExifDate = exifDate;
 
     const date = exifDate || document.getElementById('ed-date').value || selDate;
-    const src = await resizeImage(f, 1100, 0.68);
+    const src = await resizeImage(f, 720, 0.7);
     pendingPhotos.push({id:uid(), date, src, name:f.name, origSize:f.size});
     totalOrig += f.size;
     renderPhotoRow();
@@ -787,6 +835,7 @@ function saveLbDate(){
 function deleteLbPhoto(){
   if(!lbCurrentId) return;
   if(!confirm('이 사진을 삭제할까요?')) return;
+  syncPhotoDeleteToServer(lbCurrentId); // 서버에서도 삭제
   db.photos = db.photos.filter(x=>x.id!==lbCurrentId);
   saveDb();
   closeLb();
@@ -892,6 +941,58 @@ if('serviceWorker' in navigator){
 renderDdays();
 renderCal();
 checkBackupReminder();
+
+// ── Firebase 동기화 ──
+async function syncFromFirebase(){
+  if(!window.FB){
+    await new Promise(res=>{
+      window.addEventListener('fb-ready',res,{once:true});
+      setTimeout(res,3000);
+    });
+  }
+  if(!window.FB) return;
+  let changed=false;
+  // 1) 텍스트 일기 동기화
+  const serverEntries=await window.FB.getEntries();
+  if(serverEntries){
+    // 서버 entries를 로컬과 병합 (서버 우선, 로컬에만 있는 날짜는 유지)
+    for(const ds in serverEntries){
+      const sv=serverEntries[ds], lo=db.entries[ds];
+      if(!lo || (sv.updatedAt && (!lo.updatedAt || sv.updatedAt>lo.updatedAt))){
+        db.entries[ds]=sv; changed=true;
+      }
+    }
+    // 로컬에만 있는 건 서버로 (마이그레이션)
+    let needUpload=false;
+    for(const ds in db.entries){ if(!serverEntries[ds]) needUpload=true; }
+    if(needUpload) window.FB.putEntries(db.entries);
+  } else {
+    // 서버에 아무것도 없으면 로컬 데이터 업로드 (최초 마이그레이션)
+    if(Object.keys(db.entries).length) window.FB.putEntries(db.entries);
+  }
+  // 2) 사진 동기화
+  const serverPhotos=await window.FB.allPhotos();
+  if(serverPhotos){
+    const localIds=new Set(db.photos.map(p=>p.id));
+    const serverIds=new Set(serverPhotos.map(p=>p.id));
+    // 서버에만 있는 사진 → 로컬 추가
+    for(const p of serverPhotos){
+      if(!localIds.has(p.id)){ db.photos.push(p); changed=true; }
+    }
+    // 로컬에만 있는 사진 → 서버 업로드
+    for(const p of db.photos){
+      if(!serverIds.has(p.id)) window.FB.putPhoto(p);
+    }
+  }
+  if(changed){
+    localStorage.setItem(SK, JSON.stringify(db));
+    renderDdays(); renderCal();
+    const cur=document.querySelector('.tabbtn.active')?.dataset.tab;
+    if(cur==='photos') renderPhotos();
+    if(cur==='list') renderList();
+  }
+}
+syncFromFirebase();
 </script>
 </body>
 </html>
