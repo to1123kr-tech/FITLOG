@@ -124,12 +124,15 @@ body{font-family:'Gowun Dodum',sans-serif;background:var(--bg);color:var(--text)
 .cal-cell.sun .cnum{color:var(--red)}
 .cal-cell.sat .cnum{color:var(--accent)}
 .cal-cell .dot{width:5px;height:5px;border-radius:50%;background:var(--accent);margin-top:auto;margin-bottom:2px}
+.cal-cell .cond-ico{font-size:9px;line-height:1}
 .cal-actions{display:flex;gap:8px;margin-top:12px}
 
 /* 선택일 미리보기 */
 .summary-date{font-weight:700;font-size:15px;margin-bottom:8px}
 .badges{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
 .badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:500}
+.badge-cond{background:var(--accent-soft);color:var(--accent)}
+.badge-pain{background:var(--red-soft);color:var(--red)}
 .badge-photo{background:var(--amber-soft);color:var(--amber)}
 .summary-text{font-size:14px;line-height:1.7;color:var(--text);margin-bottom:8px}
 .summary-photos{display:flex;gap:6px;flex-wrap:wrap}
@@ -139,6 +142,13 @@ body{font-family:'Gowun Dodum',sans-serif;background:var(--bg);color:var(--text)
 .form-label{font-size:13px;color:var(--muted);display:block;margin:12px 0 6px}
 .form-label:first-child{margin-top:0}
 .form-date{width:100%;border:1px solid var(--border);border-radius:12px;padding:10px 12px;font-size:15px;background:var(--surface);color:var(--text);font-family:'Gowun Dodum',sans-serif}
+.score-row{display:flex;gap:10px}
+.score-row>div{flex:1;display:flex;flex-direction:column;gap:6px}
+.score-row input[type=range]{width:100%;-webkit-appearance:none;height:6px;border-radius:3px;outline:none;cursor:pointer}
+.score-slider-cond{background:linear-gradient(to right,var(--red),var(--amber),var(--green))}
+.score-slider-pain{background:linear-gradient(to right,var(--green),var(--amber),var(--red))}
+.score-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;border:2px solid var(--accent);box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.score-display{font-size:18px;font-weight:700;color:var(--accent);text-align:center}
 .diary-ta{width:100%;border:1px solid var(--border);border-radius:14px;padding:12px;font-size:15px;line-height:1.8;min-height:140px;resize:vertical;font-family:'Gowun Dodum',sans-serif;color:var(--text);background:var(--surface)}
 .diary-ta::placeholder{color:#ccc}
 .photo-add-btn{width:70px;height:70px;border:2px dashed var(--border);border-radius:12px;background:var(--surface2);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:22px;color:var(--muted);flex-shrink:0}
@@ -212,43 +222,6 @@ body{font-family:'Gowun Dodum',sans-serif;background:var(--bg);color:var(--text)
 .section-title{font-family:'Jua',sans-serif;font-size:16px;font-weight:600;margin-bottom:12px;color:var(--text)}
 </style>
 </head>
-<!-- Firebase SDK -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-  const firebaseConfig = {
-    apiKey: "AIzaSyAYVVjoGbe7Tez7skPJgU0wdUhzY4EVhvo",
-    authDomain: "yoo-life.firebaseapp.com",
-    projectId: "yoo-life",
-    storageBucket: "yoo-life.firebasestorage.app",
-    messagingSenderId: "1024094896379",
-    appId: "1:1024094896379:web:c2df289bfa21f5c8eb305e"
-  };
-  const fbApp = initializeApp(firebaseConfig);
-  const fbDb = getFirestore(fbApp);
-  const COL = 'diary'; // 일기앱은 diary 컬렉션 (운동앱과 분리)
-  window.FB = {
-    db: fbDb,
-    // 텍스트 일기 전체 저장 (entries 문서 하나)
-    async putEntries(entriesObj){
-      try{ await setDoc(doc(fbDb, COL, 'entries'), {data: entriesObj}); }catch(e){ console.warn('FB entries 실패', e); }
-    },
-    async getEntries(){
-      try{ const s=await getDoc(doc(fbDb, COL, 'entries')); return s.exists()?s.data().data:null; }catch(e){ console.warn(e); return null; }
-    },
-    // 사진 한 장씩 저장
-    async putPhoto(p){
-      try{ await setDoc(doc(fbDb, COL+'_photos', p.id), p); }catch(e){ console.warn('FB photo 실패', e); }
-    },
-    async delPhoto(id){
-      try{ await deleteDoc(doc(fbDb, COL+'_photos', id)); }catch(e){ console.warn(e); }
-    },
-    async allPhotos(){
-      try{ const s=await getDocs(collection(fbDb, COL+'_photos')); const a=[]; s.forEach(d=>a.push(d.data())); return a; }catch(e){ console.warn(e); return null; }
-    }
-  };
-  window.dispatchEvent(new Event('fb-ready'));
-</script>
 <body>
 
 <!-- ■ 헤더 -->
@@ -298,6 +271,20 @@ body{font-family:'Gowun Dodum',sans-serif;background:var(--bg);color:var(--text)
     <div class="section-title" id="write-title">기록 입력</div>
     <label class="form-label">날짜</label>
     <input type="date" class="form-date" id="ed-date" onchange="onEdDateChange()">
+
+    <label class="form-label">상태</label>
+    <div class="score-row">
+      <div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">😊 컨디션</div>
+        <input type="range" class="score-slider-cond" id="ed-cond" min="0" max="10" value="5" oninput="document.getElementById('ed-cond-v').textContent=this.value">
+        <div class="score-display" id="ed-cond-v">5</div>
+      </div>
+      <div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">💢 통증</div>
+        <input type="range" class="score-slider-pain" id="ed-pain" min="0" max="10" value="0" oninput="document.getElementById('ed-pain-v').textContent=this.value">
+        <div class="score-display" id="ed-pain-v">0</div>
+      </div>
+    </div>
 
     <label class="form-label">내용</label>
     <textarea class="diary-ta" id="ed-text" placeholder="오늘 어떠셨나요? 편하게 적어주세요…"></textarea>
@@ -397,18 +384,7 @@ function loadDb(){
   }catch(e){}
   return {entries:{}, photos:[]};
 }
-function saveDb(){
-  localStorage.setItem(SK, JSON.stringify(db));
-  // Firestore에 텍스트 일기 동기화 (사진 제외, 가벼움)
-  if(window.FB){ window.FB.putEntries(db.entries); }
-}
-// 사진을 서버에도 저장
-function syncPhotoToServer(p){
-  if(window.FB){ window.FB.putPhoto(p); }
-}
-function syncPhotoDeleteToServer(id){
-  if(window.FB){ window.FB.delPhoto(id); }
-}
+function saveDb(){ localStorage.setItem(SK, JSON.stringify(db)); }
 function uid(){ return Math.random().toString(36).slice(2)+Date.now().toString(36); }
 
 // ══════════════════════════════════════════════════════
@@ -468,20 +444,6 @@ function moveMonth(n){
   if(calMonth>11){calMonth=0;calYear++;} if(calMonth<0){calMonth=11;calYear--;}
   renderCal();
 }
-let _calSwipeReady=false;
-function setupCalSwipe(){
-  if(_calSwipeReady) return;
-  const grid=document.getElementById('cal-grid');
-  if(!grid) return;
-  let sx=0,sy=0;
-  grid.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY;},{passive:true});
-  grid.addEventListener('touchend',e=>{
-    const dx=e.changedTouches[0].clientX-sx;
-    const dy=e.changedTouches[0].clientY-sy;
-    if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>50){moveMonth(dx<0?1:-1);}
-  });
-  _calSwipeReady=true;
-}
 function goToday(){
   calYear=todayObj.getFullYear(); calMonth=todayObj.getMonth();
   selDate=fmtDate(todayObj);
@@ -513,7 +475,10 @@ function renderCal(){
     const hasPhoto=db.photos.some(p=>p.date===ds);
 
     let inner=`<span class="cnum">${d}</span>`;
-
+    if(entry&&entry.cond!==undefined){
+      const ic=entry.cond>=7?'😊':entry.cond>=4?'😐':'😔';
+      inner+=`<span class="cond-ico">${ic}</span>`;
+    }
     if(entry||hasPhoto) inner+=`<span class="dot"></span>`;
     c.innerHTML=inner;
     c.onclick=()=>{ selDate=ds; renderCal(); };
@@ -521,17 +486,18 @@ function renderCal(){
     grid.appendChild(c);
   }
   renderCalSummary();
-  setupCalSwipe();
 }
 
 function renderCalSummary(){
   const box=document.getElementById('cal-summary');
   const e=db.entries[selDate]||{};
   const photos=db.photos.filter(p=>p.date===selDate);
-  const hasAnything=e.text||photos.length;
+  const hasAnything=e.text||(e.cond!==undefined)||photos.length;
   if(!hasAnything){ box.style.display='none'; return; }
   box.style.display='block';
   const badges=[];
+  if(e.cond!==undefined) badges.push(`<span class="badge badge-cond">컨디션 ${e.cond}</span>`);
+  if(e.pain!==undefined&&e.pain>0) badges.push(`<span class="badge badge-pain">통증 ${e.pain}</span>`);
   if(photos.length) badges.push(`<span class="badge badge-photo">📷 ${photos.length}장</span>`);
   const thumbs=photos.slice(0,5).map(p=>`<img src="${p.src}" onclick="openLbById('${p.id}')" style="cursor:pointer">`).join('');
   box.innerHTML=`
@@ -563,6 +529,10 @@ function openEditor(ds){
   const e=db.entries[selDate]||{};
   document.getElementById('write-title').textContent=dateLbl(selDate)+' 기록';
   document.getElementById('ed-date').value=selDate;
+  document.getElementById('ed-cond').value=e.cond!==undefined?e.cond:5;
+  document.getElementById('ed-cond-v').textContent=e.cond!==undefined?e.cond:5;
+  document.getElementById('ed-pain').value=e.pain!==undefined?e.pain:0;
+  document.getElementById('ed-pain-v').textContent=e.pain!==undefined?e.pain:0;
   document.getElementById('ed-text').value=e.text||'';
   document.getElementById('compress-note').textContent='';
   pendingPhotos=[];
@@ -577,10 +547,12 @@ function saveEntry(){
   const ds=document.getElementById('ed-date').value||selDate;
   selDate=ds;
   db.entries[ds]={
+    cond:parseInt(document.getElementById('ed-cond').value),
+    pain:parseInt(document.getElementById('ed-pain').value),
     text:document.getElementById('ed-text').value.trim(),
     updatedAt:new Date().toISOString()
   };
-  pendingPhotos.forEach(p=>{db.photos.push(p);syncPhotoToServer(p);});
+  pendingPhotos.forEach(p=>db.photos.push(p));
   pendingPhotos=[];
   saveDb();
   // 저장한 날짜로 달력 이동
@@ -612,7 +584,7 @@ async function onPhotoSelected(ev){
     if(exifDate && !firstExifDate) firstExifDate = exifDate;
 
     const date = exifDate || document.getElementById('ed-date').value || selDate;
-    const src = await resizeImage(f, 720, 0.7);
+    const src = await resizeImage(f, 1100, 0.68);
     pendingPhotos.push({id:uid(), date, src, name:f.name, origSize:f.size});
     totalOrig += f.size;
     renderPhotoRow();
@@ -692,9 +664,11 @@ function renderList(){
   }).map(k=>{
     const e=db.entries[k]||{};
     const photos=db.photos.filter(p=>p.date===k);
-    if(!e.text&&!photos.length) return '';
+    if(!e.text&&!(e.cond!==undefined)&&!photos.length) return '';
     const badges=[];
-      if(photos.length) badges.push(`<span class="badge badge-photo">📷${photos.length}</span>`);
+    if(e.cond!==undefined) badges.push(`<span class="badge badge-cond">컨디션 ${e.cond}</span>`);
+    if(e.pain>0) badges.push(`<span class="badge badge-pain">통증 ${e.pain}</span>`);
+    if(photos.length) badges.push(`<span class="badge badge-photo">📷${photos.length}</span>`);
     const thumbs=photos.slice(0,3).map(p=>
       `<img src="${p.src}" onclick="openLbById('${p.id}');event.stopPropagation();" style="cursor:pointer">`
     ).join('');
@@ -734,20 +708,7 @@ function renderBackupInfo(){
     `기록 <b>${eCnt}일</b> · 사진 <b>${pCnt}장</b><br>마지막 백업: <b>${lastBackup}</b>`;
 }
 function checkBackupReminder(){
-  const last=localStorage.getItem('last_backup_date');
-  if(!last){
-    // 기록이 하나라도 있으면 알림
-    if(Object.keys(db.entries).length>0){
-      setTimeout(()=>alert('💾 아직 백업을 한 번도 안 하셨어요!\n백업 탭에서 내보내기 해두세요.'),1000);
-    }
-    return;
-  }
-  const lastDate=new Date(last+'T00:00:00');
-  const now=new Date(); now.setHours(0,0,0,0);
-  const diff=Math.floor((now-lastDate)/86400000);
-  if(diff>=3){
-    setTimeout(()=>alert(`💾 마지막 백업이 ${diff}일 전이에요!\n백업 탭에서 내보내기 해두세요.`),1000);
-  }
+  // 자동 동기화(Firebase) 사용 중이므로 백업 알림 표시 안 함
 }
 function doExport(){
   const n=new Date(), fname=`나의기록_${n.getFullYear()}${pad(n.getMonth()+1)}${pad(n.getDate())}.json`;
@@ -768,10 +729,13 @@ function doImport(ev){
       const inc=Object.keys(p.entries).length+p.photos.length;
       if(!confirm(`${inc}건 복원합니다. 같은 날짜는 덮어씁니다. 계속할까요?`)) return;
       db.entries={...db.entries,...p.entries};
-      // 중복 사진 id 제거
+      // 중복 사진 id 제거 + 새 사진은 서버에도 업로드
       const existIds=new Set(db.photos.map(x=>x.id));
-      p.photos.forEach(x=>{ if(!existIds.has(x.id)) db.photos.push(x); });
-      saveDb(); alert('✅ 복원 완료!'); showView('cal');
+      const newPhotos=[];
+      p.photos.forEach(x=>{ if(!existIds.has(x.id)){ db.photos.push(x); newPhotos.push(x); } });
+      saveDb(); // 텍스트 서버 동기화
+      newPhotos.forEach(x=>syncPhotoToServer(x)); // 복원된 사진 서버 업로드
+      alert(`✅ 복원 완료!\n☁️ 서버 동기화 중... (사진 ${newPhotos.length}장)`); showView('cal');
     }catch{ alert('❌ 파일 형식이 맞지 않아요.'); }
   };
   fr.readAsText(file); ev.target.value='';
@@ -835,7 +799,6 @@ function saveLbDate(){
 function deleteLbPhoto(){
   if(!lbCurrentId) return;
   if(!confirm('이 사진을 삭제할까요?')) return;
-  syncPhotoDeleteToServer(lbCurrentId); // 서버에서도 삭제
   db.photos = db.photos.filter(x=>x.id!==lbCurrentId);
   saveDb();
   closeLb();
@@ -941,58 +904,6 @@ if('serviceWorker' in navigator){
 renderDdays();
 renderCal();
 checkBackupReminder();
-
-// ── Firebase 동기화 ──
-async function syncFromFirebase(){
-  if(!window.FB){
-    await new Promise(res=>{
-      window.addEventListener('fb-ready',res,{once:true});
-      setTimeout(res,3000);
-    });
-  }
-  if(!window.FB) return;
-  let changed=false;
-  // 1) 텍스트 일기 동기화
-  const serverEntries=await window.FB.getEntries();
-  if(serverEntries){
-    // 서버 entries를 로컬과 병합 (서버 우선, 로컬에만 있는 날짜는 유지)
-    for(const ds in serverEntries){
-      const sv=serverEntries[ds], lo=db.entries[ds];
-      if(!lo || (sv.updatedAt && (!lo.updatedAt || sv.updatedAt>lo.updatedAt))){
-        db.entries[ds]=sv; changed=true;
-      }
-    }
-    // 로컬에만 있는 건 서버로 (마이그레이션)
-    let needUpload=false;
-    for(const ds in db.entries){ if(!serverEntries[ds]) needUpload=true; }
-    if(needUpload) window.FB.putEntries(db.entries);
-  } else {
-    // 서버에 아무것도 없으면 로컬 데이터 업로드 (최초 마이그레이션)
-    if(Object.keys(db.entries).length) window.FB.putEntries(db.entries);
-  }
-  // 2) 사진 동기화
-  const serverPhotos=await window.FB.allPhotos();
-  if(serverPhotos){
-    const localIds=new Set(db.photos.map(p=>p.id));
-    const serverIds=new Set(serverPhotos.map(p=>p.id));
-    // 서버에만 있는 사진 → 로컬 추가
-    for(const p of serverPhotos){
-      if(!localIds.has(p.id)){ db.photos.push(p); changed=true; }
-    }
-    // 로컬에만 있는 사진 → 서버 업로드
-    for(const p of db.photos){
-      if(!serverIds.has(p.id)) window.FB.putPhoto(p);
-    }
-  }
-  if(changed){
-    localStorage.setItem(SK, JSON.stringify(db));
-    renderDdays(); renderCal();
-    const cur=document.querySelector('.tabbtn.active')?.dataset.tab;
-    if(cur==='photos') renderPhotos();
-    if(cur==='list') renderList();
-  }
-}
-syncFromFirebase();
 </script>
 </body>
 </html>
