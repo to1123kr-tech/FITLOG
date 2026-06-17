@@ -431,7 +431,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
       <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
 
       <div id="pendSection" class="hidden">
-        <div class="secTitle">등록 대기중 <span id="pendCount"></span></div>
+        <div class="secTitle" style="display:flex;align-items:center;justify-content:space-between;">
+          <span>등록 대기중 <span id="pendCount"></span></span>
+          <button onclick="clearAllPending()" style="font-size:11px;padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;font-family:inherit;">전체 비우기</button>
+        </div>
         <div class="pendList" id="pendList"></div>
       </div>
 
@@ -919,25 +922,38 @@ function toDateStr(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padSta
 function getAmPm(d){return d.getHours()<12?'am':'pm';}
 function ampmKr(ap){return ap==='am'?'오전':'오후';}
 function fmtMin(m){if(!m)return '0분';const h=Math.floor(m/60);const min=m%60;return h>0?(min>0?`${h}시간 ${min}분`:`${h}시간`):`${min}분`;}
-// 이미지 리사이즈 압축 (긴 변 720px, quality 0.72 — Firestore 저장용)
+// 이미지 리사이즈 압축 (긴 변 720px — Firestore 저장용)
 function readDataUrl(f){
   return new Promise(r=>{
     const fr=new FileReader();
     fr.onload=e=>{
+      const original=e.target.result; // 원본 dataURL (fallback용)
       const img=new Image();
       img.onload=()=>{
-        const MAX=720;
-        let w=img.width,h=img.height;
-        if(w>MAX||h>MAX){
-          if(w>h){h=Math.round(h*MAX/w);w=MAX;}
-          else{w=Math.round(w*MAX/h);h=MAX;}
+        try{
+          const MAX=720;
+          let w=img.width,h=img.height;
+          if(!w||!h){ r(original); return; } // 크기 못 읽으면 원본
+          if(w>MAX||h>MAX){
+            if(w>h){h=Math.round(h*MAX/w);w=MAX;}
+            else{w=Math.round(w*MAX/h);h=MAX;}
+          }
+          const c=document.createElement('canvas');
+          c.width=w;c.height=h;
+          const ctx=c.getContext('2d');
+          ctx.fillStyle='#fff'; // 흰 배경 (투명/검정 방지)
+          ctx.fillRect(0,0,w,h);
+          ctx.drawImage(img,0,0,w,h);
+          const out=c.toDataURL('image/jpeg',0.72);
+          // 결과가 비정상적으로 작으면(깨짐) 원본 사용
+          r(out && out.length>1000 ? out : original);
+        }catch(err){
+          console.warn('압축 실패, 원본 사용', err);
+          r(original);
         }
-        const c=document.createElement('canvas');
-        c.width=w;c.height=h;
-        c.getContext('2d').drawImage(img,0,0,w,h);
-        r(c.toDataURL('image/jpeg',0.72));
       };
-      img.src=e.target.result;
+      img.onerror=()=>{ r(original); }; // 로드 실패시 원본
+      img.src=original;
     };
     fr.readAsDataURL(f);
   });
@@ -1049,6 +1065,7 @@ async function saveQuickRun(){
         ex.runTime=ex.runTime+t;
         await dbPut('photos',ex);
         document.getElementById('qRunTime').value='';
+        document.getElementById('qPanel-run').classList.remove('open'); // 폼 닫기
         toast(`${ex.runTime}분으로 합산 저장!`);
         allPhotos=await dbAll('photos');
         if(document.getElementById('pg-cal').classList.contains('active')) renderCalendar();
@@ -1058,6 +1075,7 @@ async function saveQuickRun(){
   } else {
     await dbPut('photos',{id:'r'+Date.now(),dateStr:date,ampm,type:'running',runTime:t,ts:Date.now()});
     document.getElementById('qRunTime').value='';
+    document.getElementById('qPanel-run').classList.remove('open'); // 폼 닫기
     toast('운동 저장!');
     allPhotos=await dbAll('photos');
     if(document.getElementById('pg-cal').classList.contains('active')) renderCalendar();
@@ -1107,6 +1125,7 @@ async function saveQuickSteps(){
   const ex=allPhotos.find(p=>p.type==='steps'&&p.dateStr===date&&p.ampm===ampm);
   await dbPut('photos',{id:ex?ex.id:'s'+Date.now(),dateStr:date,ampm,type:'steps',steps:val,ts:Date.now()});
   document.getElementById('qStepsVal').value='';
+  document.getElementById('qPanel-steps').classList.remove('open'); // 폼 닫기
   toast('걸음수 저장!');allPhotos=await dbAll('photos');
   if(document.getElementById('pg-cal').classList.contains('active')) renderCalendar();
 }
@@ -1304,18 +1323,18 @@ async function renderPhotoPage(){
   renderMyPhotos();renderRunPhotos();
 }
 function renderMyPhotos(){
-  const my=allPhotos.filter(p=>p.type==='myphoto');
+  const my=allPhotos.filter(p=>p.type==='myphoto'&&p.dataUrl);
   document.getElementById('myPhotoEmpty').classList.toggle('hidden',my.length>0);
   document.getElementById('myPhotoList').innerHTML=my.length?buildDateGroups(my,'myphoto'):'';
 }
 function renderRunPhotos(){
-  const run=allPhotos.filter(p=>p.type==='running');
+  const run=allPhotos.filter(p=>p.type==='running'&&p.dataUrl); // 사진 있는 운동만 (직접입력 제외)
   document.getElementById('runPhotoEmpty').classList.toggle('hidden',run.length>0);
   document.getElementById('runPhotoList').innerHTML=run.length?buildDateGroups(run,'running'):'';
 }
 function buildDateGroups(photos,type){
   const grouped={};
-  photos.forEach(p=>{if(!grouped[p.dateStr])grouped[p.dateStr]={am:[],pm:[]};grouped[p.dateStr][p.ampm].push(p);});
+  photos.forEach(p=>{if(!p.dataUrl)return;if(!grouped[p.dateStr])grouped[p.dateStr]={am:[],pm:[]};grouped[p.dateStr][p.ampm].push(p);});
   return Object.keys(grouped).sort((a,b)=>b.localeCompare(a)).map(date=>{
     const d=grouped[date];
     const mkCol=(ap)=>{
@@ -1344,7 +1363,7 @@ function buildDateGroups(photos,type){
 // ── 풀스크린 슬라이더 ──
 async function openPhotoSlide(id,type){
   allPhotos=await dbAll('photos');
-  const pool=allPhotos.filter(p=>p.type===type).sort((a,b)=>a.dateStr.localeCompare(b.dateStr)||(a.ampm<b.ampm?-1:1));
+  const pool=allPhotos.filter(p=>p.type===type&&p.dataUrl).sort((a,b)=>a.dateStr.localeCompare(b.dateStr)||(a.ampm<b.ampm?-1:1));
   pvPhotos=pool;pvCurIdx=Math.max(0,pool.findIndex(p=>p.id===id));
   buildPV();document.getElementById('pvFull').classList.add('open');
 }
@@ -1831,15 +1850,18 @@ async function deleteIb(){
 function startCmp(ab){cmpIbTarget=ab;toast(`${ab.toUpperCase()} 날짜를 아래 목록에서 선택하세요`);}
 function calcCmp(){
   if(!cmpIbA||!cmpIbB)return;
-  const fmt=(a,b,lessIsGood)=>{const d=+(b-a).toFixed(1);const cls=(d<0)===lessIsGood?'dn':'up';return `<span class="cmpVal ${cls}">${d>0?'+':''}${d}</span>`;};
-  const setEl=(id,html)=>{const el=document.getElementById(id);if(el)el.outerHTML=html.replace('<span','<span id="'+id+'"');};
-  setEl('crW',fmt(cmpIbA.weight,cmpIbB.weight,true)+' kg');
-  setTimeout(()=>{
-    setEl('crM',fmt(cmpIbA.muscle,cmpIbB.muscle,false)+' kg');
-    setEl('crF',fmt(cmpIbA.fat,cmpIbB.fat,true)+' kg');
-    setEl('crFR',fmt(cmpIbA.fatrate||0,cmpIbB.fatrate||0,true)+' %');
-    document.getElementById('cmpResult').classList.add('on');
-  },50);
+  const setVal=(id,a,b,unit,lessIsGood)=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    const d=+(b-a).toFixed(1);
+    el.textContent=(d>0?'+':'')+d+' '+unit;
+    el.className='cmpVal '+((d<0)===lessIsGood?'dn':'up');
+  };
+  setVal('crW',cmpIbA.weight,cmpIbB.weight,'kg',true);
+  setVal('crM',cmpIbA.muscle,cmpIbB.muscle,'kg',false);
+  setVal('crF',cmpIbA.fat,cmpIbB.fat,'kg',true);
+  setVal('crFR',cmpIbA.fatrate||0,cmpIbB.fatrate||0,'%',true);
+  document.getElementById('cmpResult').classList.add('on');
 }
 async function saveStepsGoal(){
   const v=parseInt(document.getElementById('stepsGoalInput').value);
