@@ -912,7 +912,7 @@ function parseExifDate(file){
                   if(voff+19<=tiff.length){
                     const s=String.fromCharCode(...tiff.slice(voff,voff+19));
                     const m=s.match(/(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
-                    if(m){res(new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+m[6]));return;}
+                    if(m){res({date:new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+m[6]),fromExif:true});return;}
                   }
                 }
               }
@@ -924,15 +924,39 @@ function parseExifDate(file){
           i+=2+segLen;
         }
       }catch(e){}
-      res(new Date(file.lastModified));
+      res({date:new Date(file.lastModified),fromExif:false}); // EXIF 없음
     };
-    fr.onerror=()=>res(new Date(file.lastModified));
+    fr.onerror=()=>res({date:new Date(file.lastModified),fromExif:false});
     fr.readAsArrayBuffer(file.slice(0,196608));
   });
 }
 function toDateStr(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function getAmPm(d){return d.getHours()<12?'am':'pm';}
 function ampmKr(ap){return ap==='am'?'오전':'오후';}
+// 파일명에서 날짜+시간 추출 (스크린샷 등 EXIF 없는 사진용)
+// 예: Screenshot_20260622_232212 → 2026-06-22 23:22:12
+function parseDateFromName(name){
+  if(!name) return null;
+  // 패턴1: 20260622_232212 (날짜_시간)
+  let m=name.match(/(20\d{2})(\d{2})(\d{2})[_\-]?(\d{2})(\d{2})(\d{2})/);
+  if(m){
+    const d=new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+m[6]);
+    if(!isNaN(d)&&+m[2]>=1&&+m[2]<=12&&+m[3]>=1&&+m[3]<=31) return d;
+  }
+  // 패턴2: 20260622 (날짜만) → 정오로
+  m=name.match(/(20\d{2})(\d{2})(\d{2})/);
+  if(m){
+    const d=new Date(+m[1],+m[2]-1,+m[3],12,0,0);
+    if(!isNaN(d)&&+m[2]>=1&&+m[2]<=12&&+m[3]>=1&&+m[3]<=31) return d;
+  }
+  // 패턴3: 2026-06-22 형식
+  m=name.match(/(20\d{2})[.\-_](\d{1,2})[.\-_](\d{1,2})/);
+  if(m){
+    const d=new Date(+m[1],+m[2]-1,+m[3],12,0,0);
+    if(!isNaN(d)&&+m[2]>=1&&+m[2]<=12&&+m[3]>=1&&+m[3]<=31) return d;
+  }
+  return null;
+}
 function fmtMin(m){if(!m)return '0분';const h=Math.floor(m/60);const min=m%60;return h>0?(min>0?`${h}시간 ${min}분`:`${h}시간`):`${min}분`;}
 // 이미지 리사이즈 압축 (긴 변 720px — Firestore 저장용)
 function readDataUrl(f){
@@ -977,19 +1001,26 @@ document.getElementById('fileInput').addEventListener('change',handleFiles);
 async function handleFiles(e){
   const files=Array.from(e.target.files);if(!files.length)return;
   allPhotos=await dbAll('photos');
-  let added=0,dup=0;
+  let added=0,dup=0,nameDated=0;
   for(const f of files){
     const key=f.name+'|'+f.size;
     if(pendingPhotos.some(p=>p._key===key)||allPhotos.some(p=>p._key===key)){dup++;continue;}
-    const exifDt=await parseExifDate(f);
+    const exifResult=await parseExifDate(f);
+    let finalDate=exifResult.date;
+    // EXIF 날짜 없으면(스크린샷 등) → 파일명에서 날짜 찾기
+    if(!exifResult.fromExif){
+      const nameDate=parseDateFromName(f.name);
+      if(nameDate){ finalDate=nameDate; nameDated++; }
+    }
     const id='p'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
-    const pendItem={id,dataUrl:await readDataUrl(f),dateStr:toDateStr(exifDt),ampm:getAmPm(exifDt),name:f.name,_key:key};
+    const pendItem={id,dataUrl:await readDataUrl(f),dateStr:toDateStr(finalDate),ampm:getAmPm(finalDate),name:f.name,_key:key};
     pendingPhotos.push(pendItem);
     await dbPut('pending',pendItem);
     added++;
   }
   if(dup) toast(`${dup}장 중복 제외`);
-  if(added) toast(`${added}장 대기중`);
+  if(nameDated) toast(`📸 ${nameDated}장 파일명 날짜로 설정됨`);
+  else if(added) toast(`${added}장 대기중`);
   e.target.value='';renderPendingList();
 }
 function renderPendingList(){
