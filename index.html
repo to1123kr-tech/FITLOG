@@ -72,16 +72,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .calCell.empty{background:transparent;cursor:default;min-height:0;}
 .calCell.today{box-shadow:0 0 0 2px var(--text);}
 .calCell.sun .calDay{color:#ef4444;}.calCell.sat .calDay{color:#3b82f6;}
-.calDayRow{display:flex;align-items:center;gap:4px;margin-bottom:3px;}
+.calDayRow{display:flex;align-items:center;gap:4px;margin-bottom:2px;}
 .calDay{font-size:12px;font-weight:700;}
 .calDot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
 .calDot.am{background:var(--am);}.calDot.pm{background:var(--pm);}
 .calInfo{font-size:9px;line-height:1.7;}
-.calRunAm{display:block;width:100%;text-align:center;padding:3px 4px;border-radius:6px;background:rgba(59,130,246,.15);color:var(--am);font-size:9px;font-weight:700;cursor:pointer;margin-bottom:2px;border:none;font-family:inherit;}
-.calRunPm{display:block;width:100%;text-align:center;padding:3px 4px;border-radius:6px;background:rgba(249,115,22,.15);color:var(--pm);font-size:9px;font-weight:700;cursor:pointer;margin-bottom:2px;border:none;font-family:inherit;}
+.calRunAm{display:block;width:100%;text-align:center;padding:1px 4px;border-radius:5px;background:rgba(59,130,246,.15);color:var(--am);font-size:9px;font-weight:700;cursor:pointer;margin-bottom:1px;border:none;font-family:inherit;}
+.calRunPm{display:block;width:100%;text-align:center;padding:1px 4px;border-radius:5px;background:rgba(249,115,22,.15);color:var(--pm);font-size:9px;font-weight:700;cursor:pointer;margin-bottom:1px;border:none;font-family:inherit;}
 .calRunAm:active,.calRunPm:active{opacity:.65;}
-.calRunEmpty{display:block;width:100%;height:18px;margin-bottom:2px;}
-.calStepBox{margin-top:3px;border-radius:6px;overflow:hidden;background:var(--bg3);position:relative;height:16px;}
+.calRunEmpty{display:block;width:100%;height:14px;margin-bottom:1px;}
+.calStepBox{margin-top:2px;border-radius:5px;overflow:hidden;background:var(--bg3);position:relative;height:13px;}
 .calStepFill{height:100%;border-radius:6px;transition:width .4s;}
 .calStepNum{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--text);}
 .calStepEmpty{background:var(--bg3);opacity:.35;}
@@ -404,6 +404,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
   <div id="pages">
     <!-- 달력 -->
     <div class="page active" id="pg-cal">
+      <!-- 임시표시 나중에지우기 --><div style="position:fixed;top:2px;right:50%;transform:translateX(50%);z-index:9999;color:#fff;background:#10b981;font-size:10px;font-weight:800;padding:1px 8px;border-radius:10px;pointer-events:none;">v3 박스축소</div>
       <div class="calNav">
         <button class="calArrow" id="calPrev">&#8249;</button>
         <h2 id="calTitle"></h2>
