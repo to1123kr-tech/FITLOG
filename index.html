@@ -2567,26 +2567,40 @@ async function syncFromFirebase(){
   if(!window.FB) return;
   const serverData=await window.FB.all();
   if(!serverData) return; // 오프라인 등
-  const localData=await dbAll('photos');
+
+  // ── 유령 데이터 자동 정리 (dateStr 또는 type 없는 것) ──
+  const isGhost=(p)=>!p||!p.dateStr||!p.type;
+  // 서버 유령 삭제
+  for(const p of serverData){
+    if(isGhost(p)){ window.FB.del(p.id); }
+  }
+  // 로컬 유령 삭제
+  const localAll=await dbAll('photos');
+  for(const p of localAll){
+    if(isGhost(p)){ await _dbDelRaw('photos',p.id); }
+  }
+  // 정상 데이터만 남기기
+  const serverClean=serverData.filter(p=>!isGhost(p));
+  const localData=(await dbAll('photos')).filter(p=>!isGhost(p));
   const localMap={}; localData.forEach(p=>localMap[p.id]=p);
-  const serverMap={}; serverData.forEach(p=>serverMap[p.id]=p);
+  const serverMap={}; serverClean.forEach(p=>serverMap[p.id]=p);
   let changed=false;
   // 1) 서버에만 있는 것 → 로컬에 추가
-  for(const p of serverData){
+  for(const p of serverClean){
     if(!localMap[p.id]){
       await _dbPutRaw('photos',p);
       changed=true;
     }
   }
-  // 2) 로컬에만 있는 것 → 서버에 올림 (기존 데이터 마이그레이션)
+  // 2) 로컬에만 있는 것 → 서버에 올림
   for(const p of localData){
     if(!serverMap[p.id]){
       window.FB.put(p);
     }
   }
+  allPhotos=await dbAll('photos');
+  renderCalendar();
   if(changed){
-    allPhotos=await dbAll('photos');
-    renderCalendar();
     if(document.getElementById('pg-photo').classList.contains('active')) renderPhotoPage();
     if(document.getElementById('pg-inbody').classList.contains('active')) renderInbodyPage();
     toast('☁️ 동기화 완료');
