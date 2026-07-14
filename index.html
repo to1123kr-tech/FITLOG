@@ -404,7 +404,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
   <div id="pages">
     <!-- 달력 -->
     <div class="page active" id="pg-cal">
-      <!-- 임시표시 나중에지우기 --><div style="position:fixed;top:2px;right:50%;transform:translateX(50%);z-index:9999;color:#fff;background:#ef4444;font-size:10px;font-weight:800;padding:1px 8px;border-radius:10px;pointer-events:none;">56px</div>
+      <!-- 임시표시 나중에지우기 --><div style="position:fixed;top:2px;right:50%;transform:translateX(50%);z-index:9999;color:#fff;background:#8b5cf6;font-size:10px;font-weight:800;padding:1px 8px;border-radius:10px;pointer-events:none;">v2 스크롤</div>
       <div class="calNav">
         <button class="calArrow" id="calPrev">&#8249;</button>
         <h2 id="calTitle"></h2>
@@ -1051,7 +1051,7 @@ function openRegModal(idx){
   document.getElementById('inp-running').classList.add('hidden');
   document.getElementById('regRunTime').value='';
   document.getElementById('mRegTitle').textContent=`사진 등록`;
-  document.getElementById('mRegPreview').innerHTML=`<img src="${p.dataUrl}" style="width:100%;height:220px;object-fit:cover;border-radius:14px">`;
+  document.getElementById('mRegPreview').innerHTML=`<div style="width:100%;height:220px;overflow-y:auto;border-radius:14px;background:#000;-webkit-overflow-scrolling:touch;"><img src="${p.dataUrl}" style="width:100%;display:block;"></div><div style="text-align:center;font-size:10px;color:var(--text3);margin-top:4px;">↕ 사진을 위아래로 스크롤할 수 있어요</div>`;
   // 날짜 라벨 + 상세설정 초기화 (펼침 닫기, 현재 날짜/오전오후 채우기)
   document.getElementById('regDateLabel').textContent=`${p.dateStr} ${ampmKr(p.ampm)}`;
   document.getElementById('regEditPanel').classList.add('hidden');
