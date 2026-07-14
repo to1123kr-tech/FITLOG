@@ -67,7 +67,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .calGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
 .calDow{text-align:center;font-size:10px;color:var(--text3);padding:4px 0;font-weight:500;}
 .calDow:first-child{color:#ef4444;}.calDow:last-child{color:#3b82f6;}
-.calCell{background:var(--card);border-radius:11px;padding:4px 4px 5px;min-height:68px;cursor:pointer;transition:transform .15s;overflow:hidden;}
+.calCell{background:var(--card);border-radius:10px;padding:3px 4px 4px;min-height:56px;cursor:pointer;transition:transform .15s;overflow:hidden;}
 .calCell:active{transform:scale(.97);}
 .calCell.empty{background:transparent;cursor:default;min-height:0;}
 .calCell.today{box-shadow:0 0 0 2px var(--text);}
@@ -404,6 +404,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
   <div id="pages">
     <!-- 달력 -->
     <div class="page active" id="pg-cal">
+      <!-- 임시표시 나중에지우기 --><div style="text-align:center;color:#ef4444;font-size:12px;font-weight:800;padding:2px;">🔴 칸높이 56px 버전</div>
       <div class="calNav">
         <button class="calArrow" id="calPrev">&#8249;</button>
         <h2 id="calTitle"></h2>
