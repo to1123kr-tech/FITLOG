@@ -1279,7 +1279,7 @@ async function renderCalendar(){
 }
 function renderCalStats(){
   const mo=`${calYear}-${String(calMonth+1).padStart(2,'0')}`;
-  const dp=allPhotos.filter(p=>p.dateStr.startsWith(mo));
+  const dp=allPhotos.filter(p=>p.dateStr&&p.dateStr.startsWith(mo));
   const runDays=new Set(dp.filter(p=>p.type==='running').map(p=>p.dateStr)).size;
   const runCount=dp.filter(p=>p.type==='running').length;
   const runMins=dp.filter(p=>p.type==='running').reduce((a,b)=>a+(b.runTime||0),0);
