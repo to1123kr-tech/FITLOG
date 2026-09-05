@@ -708,7 +708,20 @@ function renderBackupInfo(){
     `기록 <b>${eCnt}일</b> · 사진 <b>${pCnt}장</b><br>마지막 백업: <b>${lastBackup}</b>`;
 }
 function checkBackupReminder(){
-  // 자동 동기화(Firebase) 사용 중이므로 백업 알림 표시 안 함
+  const last=localStorage.getItem('last_backup_date');
+  if(!last){
+    // 기록이 하나라도 있으면 알림
+    if(Object.keys(db.entries).length>0){
+      setTimeout(()=>alert('💾 아직 백업을 한 번도 안 하셨어요!\n백업 탭에서 내보내기 해두세요.'),1000);
+    }
+    return;
+  }
+  const lastDate=new Date(last+'T00:00:00');
+  const now=new Date(); now.setHours(0,0,0,0);
+  const diff=Math.floor((now-lastDate)/86400000);
+  if(diff>=3){
+    setTimeout(()=>alert(`💾 마지막 백업이 ${diff}일 전이에요!\n백업 탭에서 내보내기 해두세요.`),1000);
+  }
 }
 function doExport(){
   const n=new Date(), fname=`나의기록_${n.getFullYear()}${pad(n.getMonth()+1)}${pad(n.getDate())}.json`;
@@ -725,20 +738,67 @@ function doImport(ev){
   fr.onload=e=>{
     try{
       const p=JSON.parse(e.target.result);
-      if(!p.entries||!Array.isArray(p.photos)) throw 0;
-      const inc=Object.keys(p.entries).length+p.photos.length;
-      if(!confirm(`${inc}건 복원합니다. 같은 날짜는 덮어씁니다. 계속할까요?`)) return;
-      db.entries={...db.entries,...p.entries};
-      // 중복 사진 id 제거 + 새 사진은 서버에도 업로드
-      const existIds=new Set(db.photos.map(x=>x.id));
-      const newPhotos=[];
-      p.photos.forEach(x=>{ if(!existIds.has(x.id)){ db.photos.push(x); newPhotos.push(x); } });
-      saveDb(); // 텍스트 서버 동기화
-      newPhotos.forEach(x=>syncPhotoToServer(x)); // 복원된 사진 서버 업로드
-      alert(`✅ 복원 완료!\n☁️ 서버 동기화 중... (사진 ${newPhotos.length}장)`); showView('cal');
-    }catch{ alert('❌ 파일 형식이 맞지 않아요.'); }
+
+      // ── 신버전 형식: {entries:{}, photos:[]} ──
+      if(p.entries && Array.isArray(p.photos)){
+        const eCnt=Object.keys(p.entries).length;
+        const pCnt=p.photos.length;
+        if(!confirm(`기록 ${eCnt}일 · 사진 ${pCnt}장 복원합니다.\n같은 날짜는 덮어씁니다. 계속할까요?`)) return;
+
+        db.entries={...db.entries,...p.entries};
+        const existIds=new Set(db.photos.map(x=>x.id));
+        p.photos.forEach(x=>{ if(!existIds.has(x.id)) db.photos.push(x); });
+
+        try{
+          saveDb();
+          alert(`✅ 복원 완료!\n기록 ${eCnt}일 · 사진 ${pCnt}장`);
+          showView('cal');
+        }catch(quota){
+          // 용량 초과 시 사진 없이 텍스트만 복원
+          alert('⚠️ 용량 초과로 사진 일부를 저장 못 했어요.\n기록(텍스트)만 복원합니다.');
+          db.photos=[];
+          try{
+            saveDb();
+            alert(`✅ 기록(텍스트) ${eCnt}일만 복원됐어요.\n사진은 백업 후 전체삭제 → 다시 복원해보세요.`);
+            showView('cal');
+          }catch(e2){ alert('❌ 용량이 너무 많아요. 백업 → 전체삭제 후 다시 시도해주세요.'); }
+        }
+        return;
+      }
+
+      // ── 구버전 형식: {날짜: {cond, pain, text, photos:[]}} ──
+      if(typeof p === 'object' && !Array.isArray(p)){
+        const dates=Object.keys(p).filter(k=>/^\d{4}-\d{2}-\d{2}$/.test(k));
+        if(dates.length > 0){
+          if(!confirm(`구버전 백업 ${dates.length}일 기록을 복원합니다. 계속할까요?`)) return;
+          dates.forEach(ds=>{
+            const old=p[ds];
+            db.entries[ds]={cond:old.cond,pain:old.pain,text:old.text||'',updatedAt:new Date().toISOString()};
+            (old.photos||[]).forEach(ph=>{
+              db.photos.push({id:uid(),date:ds,src:ph.dataUrl||ph.src,name:ph.name||''});
+            });
+          });
+          try{
+            saveDb();
+            alert(`✅ 구버전 복원 완료! (${dates.length}일)`);
+            showView('cal');
+          }catch(quota){
+            db.photos=[];
+            saveDb();
+            alert(`✅ 기록(텍스트) ${dates.length}일만 복원됐어요. 사진은 용량 초과로 제외됐어요.`);
+            showView('cal');
+          }
+          return;
+        }
+      }
+
+      alert('❌ 파일 형식을 인식할 수 없어요.\n올바른 백업 파일인지 확인해주세요.');
+    }catch(err){
+      alert('❌ 파일을 읽을 수 없어요.\n오류: '+err.message);
+    }
   };
-  fr.readAsText(file); ev.target.value='';
+  fr.readAsText(file,'UTF-8');
+  ev.target.value='';
 }
 function clearAll(){
   if(!confirm('정말 전체 삭제할까요?\n복구가 불가능합니다.')) return;
