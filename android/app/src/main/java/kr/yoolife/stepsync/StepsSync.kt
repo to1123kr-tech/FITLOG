@@ -5,7 +5,6 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.request.AggregateGroupByPeriodRequest
-import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import org.json.JSONArray
 import org.json.JSONObject
@@ -17,7 +16,7 @@ import java.time.Period
 import java.time.format.DateTimeFormatter
 
 /**
- * Health Connect에서 오늘 걸음수를 읽어 Firestore에 올린다.
+ * Health Connect에서 걸음수를 읽어 Firestore에 올린다.
  *
  * 웹앱(index.html)이 기대하는 문서 형태와 동일하게 맞춘다:
  *   { id, dateStr:"YYYY-MM-DD", ampm:"am", type:"steps", steps:Int, ts:Long }
@@ -30,6 +29,12 @@ object StepsSync {
     private const val PROJECT = "yoo-life"
     private const val COLLECTION = "workout"
 
+    /** 정기 동기화 때 함께 다시 올리는 과거 일수 */
+    private const val CATCHUP_DAYS = 2L
+
+    private val DAY = DateTimeFormatter.ISO_LOCAL_DATE          // 2026-09-25
+    private val CLOCK = DateTimeFormatter.ofPattern("HH:mm:ss")
+
     /** 없으면 동작 자체가 불가능한 권한 */
     val REQUIRED: Set<String> = setOf(HealthPermission.getReadPermission(StepsRecord::class))
 
@@ -38,55 +43,31 @@ object StepsSync {
 
     val ALL: Set<String> = REQUIRED + OPTIONAL
 
-    /** 성공하면 화면에 보여줄 문구를 돌려준다. 실패하면 예외를 던진다. */
+    /**
+     * 정기 동기화. 오늘만이 아니라 최근 며칠을 함께 올린다.
+     *
+     * 오늘치만 올리면, 자정 직전 마지막 동기화 이후에 걸은 걸음이 영영 반영되지
+     * 않는다. 날짜가 바뀐 뒤 한 번만 더 올려주면 전날이 최종값으로 정리되고,
+     * 폰이 꺼져 있거나 인터넷이 없던 날도 함께 메워진다.
+     */
     suspend fun run(context: Context): String {
         val client = HealthConnectClient.getOrCreate(context)
-
         val today = LocalDate.now()
-        val result = client.aggregate(
-            AggregateRequest(
-                metrics = setOf(StepsRecord.COUNT_TOTAL),
-                timeRangeFilter = TimeRangeFilter.between(
-                    today.atStartOfDay(),
-                    LocalDateTime.now()
-                )
-            )
-        )
-        val steps = result[StepsRecord.COUNT_TOTAL] ?: 0L
-        val dateStr = today.format(DateTimeFormatter.ISO_LOCAL_DATE)   // 2026-09-25
 
-        commit(listOf(dateStr to steps))
+        val entries = collect(client, today.minusDays(CATCHUP_DAYS))
+        if (entries.isEmpty()) return "올릴 걸음수 기록이 없습니다."
 
-        val at = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
-        return "$dateStr\n${steps}걸음 전송 완료\n($at)"
+        commit(entries)
+
+        val todayStr = today.format(DAY)
+        val todaySteps = entries.firstOrNull { it.first == todayStr }?.second ?: 0L
+        return "$todayStr\n${todaySteps}걸음 전송 완료\n(${LocalDateTime.now().format(CLOCK)})"
     }
 
-    /**
-     * 지난 [days]일치를 하루 단위로 묶어서 한 번에 올린다.
-     *
-     * 걸음수가 0인 날은 건너뛴다. Health Connect에 기록이 없는 날까지 0으로 덮어쓰면
-     * 앱에 직접 입력해둔 값이 지워지기 때문이다.
-     */
+    /** 지난 [days]일치를 한 번에 올린다. 과거 채우기용. */
     suspend fun backfill(context: Context, days: Int): String {
         val client = HealthConnectClient.getOrCreate(context)
-        val start = LocalDate.now().minusDays(days.toLong())
-
-        val groups = client.aggregateGroupByPeriod(
-            AggregateGroupByPeriodRequest(
-                metrics = setOf(StepsRecord.COUNT_TOTAL),
-                timeRangeFilter = TimeRangeFilter.between(
-                    start.atStartOfDay(),
-                    LocalDateTime.now()
-                ),
-                timeRangeSlicer = Period.ofDays(1)
-            )
-        )
-
-        val entries = groups.mapNotNull { g ->
-            val s = g.result[StepsRecord.COUNT_TOTAL] ?: 0L
-            if (s <= 0L) null
-            else g.startTime.toLocalDate().format(DateTimeFormatter.ISO_LOCAL_DATE) to s
-        }
+        val entries = collect(client, LocalDate.now().minusDays(days.toLong()))
 
         if (entries.isEmpty()) {
             return "가져올 지난 기록이 없습니다.\n\n" +
@@ -99,6 +80,32 @@ object StepsSync {
         return "${entries.size}일치 전송 완료\n" +
             "${entries.first().first} ~ ${entries.last().first}\n\n" +
             "FITLOG 앱을 열면 달력에 반영됩니다."
+    }
+
+    /**
+     * [from] 날짜부터 지금까지를 하루 단위로 묶어 돌려준다.
+     *
+     * 걸음수가 0인 날은 제외한다. Health Connect에 기록이 없는 날까지 0으로
+     * 덮어쓰면 앱에 직접 입력해둔 값이 지워지기 때문이다.
+     */
+    private suspend fun collect(
+        client: HealthConnectClient,
+        from: LocalDate
+    ): List<Pair<String, Long>> {
+        val groups = client.aggregateGroupByPeriod(
+            AggregateGroupByPeriodRequest(
+                metrics = setOf(StepsRecord.COUNT_TOTAL),
+                timeRangeFilter = TimeRangeFilter.between(
+                    from.atStartOfDay(),
+                    LocalDateTime.now()
+                ),
+                timeRangeSlicer = Period.ofDays(1)
+            )
+        )
+        return groups.mapNotNull { g ->
+            val s = g.result[StepsRecord.COUNT_TOTAL] ?: 0L
+            if (s <= 0L) null else g.startTime.toLocalDate().format(DAY) to s
+        }
     }
 
     private fun commit(entries: List<Pair<String, Long>>) {
