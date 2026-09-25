@@ -5,12 +5,13 @@ plugins {
 
 android {
     namespace = "kr.yoolife.stepsync"
-    compileSdk = 35
+    // connect-client:1.1.0 이 36 이상을 요구한다
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "kr.yoolife.stepsync"
         minSdk = 28
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
     }
