@@ -957,9 +957,41 @@ window.addEventListener('popstate', ()=>{
 });
 history.pushState(null, '', location.href);
 
-// ── Service Worker 등록 ──
+// ── Service Worker 등록 + 새 버전 즉시 적용 ──
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js').catch(()=>{});
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloading = false, pending = false;
+
+  // 입력 중에 새로고침하면 쓰던 글이 날아가므로 잠시 미룬다
+  const isTyping = () => {
+    const el = document.activeElement;
+    return !!el && (el.tagName==='INPUT' || el.tagName==='TEXTAREA' || el.isContentEditable);
+  };
+  const apply = () => {
+    if(reloading) return;
+    if(isTyping()){ pending = true; return; }
+    reloading = true;
+    location.reload();
+  };
+
+  // 새 SW가 제어권을 잡으면 = 새 버전 도착
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if(hadController) apply();   // 첫 설치 때는 새로고침하지 않음
+  });
+
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    reg.update().catch(()=>{});
+    // PWA는 며칠씩 열려 있으므로 다시 보일 때마다 업데이트 확인
+    document.addEventListener('visibilitychange', () => {
+      if(document.visibilityState !== 'visible') return;
+      if(pending){ apply(); return; }
+      reg.update().catch(()=>{});
+    });
+    // 입력이 끝나면 미뤄둔 새로고침 처리
+    document.addEventListener('focusout', () => {
+      if(pending) setTimeout(apply, 0);
+    });
+  }).catch(()=>{});
 }
 renderDdays();
 renderCal();

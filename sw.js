@@ -1,15 +1,15 @@
-// sw.js — 나의 기록 Service Worker
+// sw.js — 오늘도 해보자!! Service Worker
 //
 // ★ 배포할 때 아래 VERSION 한 줄만 바꾸면 이전 캐시가 전부 정리됩니다.
 const VERSION = '2026-09-25a';
-const CACHE = `diary-${VERSION}`;
+const CACHE = `fitlog-${VERSION}`;
 
 // 오프라인용으로 미리 받아둘 파일
 const ASSETS = [
-  './diary.html',
+  './',
+  './index.html',
   './manifest.json',
-  './icon-192.png',
-  './icon-512.png'
+  './icon.png'
 ];
 
 // 설치: 핵심 파일 캐시 (HTTP 캐시 무시하고 새로 받기)
@@ -43,7 +43,8 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return;   // 외부 폰트 등은 그냥 네트워크
+  if (url.origin !== self.location.origin) return;   // 폰트·Firebase 등 외부는 그대로
+  if (url.pathname.includes('/diary/')) return;      // diary는 자체 sw.js 담당
 
   const isDoc = req.mode === 'navigate'
     || req.destination === 'document'
@@ -65,9 +66,9 @@ async function networkFirst(req) {
     if (fresh && fresh.ok) cache.put(req.url, fresh.clone());
     return fresh;
   } catch (err) {
-    // 오프라인: 캐시 → diary.html 순으로 폴백
+    // 오프라인: 캐시 → index.html 순으로 폴백
     return (await cache.match(req.url))
-      || (await cache.match('./diary.html'))
+      || (await cache.match('./index.html'))
       || Response.error();
   }
 }
