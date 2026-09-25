@@ -23,15 +23,10 @@ jobs:
       # (서드파티 setup-android 액션은 실패해서 제거함)
       - name: Install Android SDK packages
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          ls -1 "$ANDROID_HOME" || true
           SDKMGR="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           if [ ! -x "$SDKMGR" ]; then
-            echo "latest 경로에 없음, 다른 버전 탐색"
             SDKMGR="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)"
           fi
-          echo "sdkmanager = $SDKMGR"
           yes | "$SDKMGR" --licenses > /dev/null 2>&1 || true
           "$SDKMGR" "platforms;android-35" "build-tools;35.0.0"
 
@@ -39,11 +34,36 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      # 실패해도 일단 통과시키고, 다음 단계에서 에러를 밖으로 드러낸다.
+      # (Actions 로그는 로그인해야 볼 수 있어서 어노테이션/요약으로 남긴다)
       - name: Build debug APK
+        id: build
+        continue-on-error: true
         working-directory: android
-        run: gradle assembleDebug --no-daemon --stacktrace
+        run: |
+          set -o pipefail
+          gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee /tmp/build.log
+
+      - name: Surface build errors
+        if: steps.build.outcome != 'success'
+        run: |
+          {
+            echo "### 빌드 실패 — 로그 마지막 150줄"
+            echo '```'
+            tail -n 150 /tmp/build.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # 핵심 줄만 어노테이션으로 (로그인 없이 읽을 수 있음)
+          grep -E "^(e: |w: |FAILURE:|\* What went wrong:|Caused by:|> )" /tmp/build.log \
+            | head -n 40 \
+            | while IFS= read -r line; do echo "::error::$line"; done
+
+          echo "::error::빌드 실패 - 위 어노테이션과 Summary 참고"
+          exit 1
 
       - uses: actions/upload-artifact@v4
+        if: steps.build.outcome == 'success'
         with:
           name: fitlog-step-sync-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
