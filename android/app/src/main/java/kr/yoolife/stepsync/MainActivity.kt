@@ -41,6 +41,10 @@ class MainActivity : ComponentActivity() {
             text = "지금 동기화"
             setOnClickListener { start() }
         }
+        val backfillButton = Button(this).apply {
+            text = "지난 90일 가져오기"
+            setOnClickListener { backfill(90) }
+        }
 
         setContentView(LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -54,6 +58,7 @@ class MainActivity : ComponentActivity() {
                 ).apply { bottomMargin = 64 }
             )
             addView(button)
+            addView(backfillButton)
         })
 
         SyncWorker.schedule(this)
@@ -86,6 +91,21 @@ class MainActivity : ComponentActivity() {
             val msg = withContext(Dispatchers.IO) {
                 try {
                     StepsSync.run(this@MainActivity)
+                } catch (e: Exception) {
+                    "실패\n${e.message}"
+                }
+            }
+            status.text = msg
+        }
+    }
+
+    /** 지난 기록 일괄 전송 */
+    private fun backfill(days: Int) {
+        status.text = "지난 ${days}일 확인 중...\n조금 걸립니다"
+        lifecycleScope.launch {
+            val msg = withContext(Dispatchers.IO) {
+                try {
+                    StepsSync.backfill(this@MainActivity, days)
                 } catch (e: Exception) {
                     "실패\n${e.message}"
                 }
