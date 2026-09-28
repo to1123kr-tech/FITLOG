@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.StepsRecord
-import androidx.health.connect.client.request.AggregateGroupByPeriodRequest
+import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import org.json.JSONArray
 import org.json.JSONObject
@@ -12,7 +12,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.Period
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /**
@@ -83,28 +83,52 @@ object StepsSync {
     }
 
     /**
-     * [from] 날짜부터 지금까지를 하루 단위로 묶어 돌려준다.
+     * [from] 날짜부터 오늘까지를 하루 단위로 묶어 돌려준다.
      *
      * 걸음수가 0인 날은 제외한다. Health Connect에 기록이 없는 날까지 0으로
      * 덮어쓰면 앱에 직접 입력해둔 값이 지워지기 때문이다.
+     *
+     * 집계(aggregate)가 아니라 기록을 직접 읽어서 더한다. 집계 API는 구간 경계에
+     * 걸친 기록을 시간 비율로 쪼개는데, 걸음수는 정수라 쪼갠 소수점이 버려진다.
+     * 그래서 삼성헬스보다 하루 1걸음씩 모자라게 나왔다. 기록을 통째로 시작 시각의
+     * 날짜에 넣으면 쪼개기가 없어 이 손실이 사라진다.
+     *
+     * 조회 끝도 `now()`가 아니라 내일 자정으로 둔다. `now()`로 자르면 진행 중인
+     * 마지막 기록이 걸쳐서 또 쪼개진다.
+     *
+     * 전제: 걸음수를 Health Connect에 쓰는 앱이 삼성헬스 하나뿐이다. 다른 만보기
+     * 앱을 깔면 기록이 겹쳐서 실제보다 많게 더해질 수 있다.
      */
     private suspend fun collect(
         client: HealthConnectClient,
         from: LocalDate
     ): List<Pair<String, Long>> {
-        val groups = client.aggregateGroupByPeriod(
-            AggregateGroupByPeriodRequest(
-                metrics = setOf(StepsRecord.COUNT_TOTAL),
-                timeRangeFilter = TimeRangeFilter.between(
-                    from.atStartOfDay(),
-                    LocalDateTime.now()
-                ),
-                timeRangeSlicer = Period.ofDays(1)
+        val totals = sortedMapOf<LocalDate, Long>()
+        var token: String? = null
+
+        do {
+            val response = client.readRecords(
+                ReadRecordsRequest(
+                    recordType = StepsRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(
+                        from.atStartOfDay(),
+                        LocalDate.now().plusDays(1).atStartOfDay()
+                    ),
+                    pageToken = token
+                )
             )
-        )
-        return groups.mapNotNull { g ->
-            val s = g.result[StepsRecord.COUNT_TOTAL] ?: 0L
-            if (s <= 0L) null else g.startTime.toLocalDate().format(DAY) to s
+            for (r in response.records) {
+                val offset = r.startZoneOffset
+                    ?: ZoneId.systemDefault().rules.getOffset(r.startTime)
+                val date = r.startTime.atOffset(offset).toLocalDate()
+                if (date < from) continue          // 자정에 걸친 기록은 전날 몫
+                totals[date] = (totals[date] ?: 0L) + r.count
+            }
+            token = response.pageToken
+        } while (token != null)
+
+        return totals.mapNotNull { (date, steps) ->
+            if (steps <= 0L) null else date.format(DAY) to steps
         }
     }
 
