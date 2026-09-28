@@ -10,7 +10,8 @@ android {
 
     defaultConfig {
         applicationId = "kr.yoolife.stepsync"
-        minSdk = 28
+        // 삼성헬스 Data SDK 가 Android 10(API 29) 이상을 요구한다
+        minSdk = 29
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -35,6 +36,10 @@ android {
 }
 
 dependencies {
+    // 삼성헬스 Data SDK (app/libs/*.aar). 과거 채우기에만 쓴다 — SamsungHealth.kt
+    // 매일 동기화는 아래 Health Connect 그대로.
+    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar"))))
+
     implementation("androidx.health.connect:connect-client:1.1.0")
     implementation("androidx.activity:activity-ktx:1.9.3")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")

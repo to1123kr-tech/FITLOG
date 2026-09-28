@@ -16,9 +16,15 @@ import java.time.Period
 import java.time.format.DateTimeFormatter
 
 /**
- * Health Connect에서 걸음수를 읽어 Firestore에 올린다.
+ * 걸음수를 읽어 Firestore에 올린다. 읽는 경로가 둘이다:
  *
- * 웹앱(index.html)이 기대하는 문서 형태와 동일하게 맞춘다:
+ *  - [run]      매일 도는 정기 동기화 → **Health Connect** (백그라운드 포함)
+ *  - [backfill] 과거 채우기 버튼      → **삼성헬스 Data SDK** (SamsungHealth.kt)
+ *
+ * 나눠 둔 이유는 SamsungHealth.kt 주석 참고. 요약하면 과거 기록은 Health Connect에
+ * 30일치밖에 없고, 삼성헬스 SDK는 백그라운드 동작이 확인되지 않았다.
+ *
+ * 웹앱(index.html)이 기대하는 문서 형태는 양쪽 다 동일하게 맞춘다:
  *   { id, dateStr:"YYYY-MM-DD", ampm:"am", type:"steps", steps:Int, ts:Long }
  * 문서 id를 날짜로 고정하므로 하루에 몇 번 돌려도 같은 문서가 갱신된다.
  */
@@ -64,14 +70,20 @@ object StepsSync {
         return "$todayStr\n${todaySteps}걸음 전송 완료\n(${LocalDateTime.now().format(CLOCK)})"
     }
 
-    /** 지난 [days]일치를 한 번에 올린다. 과거 채우기용. */
+    /**
+     * 지난 [days]일치를 한 번에 올린다. 과거 채우기용.
+     *
+     * Health Connect가 아니라 **삼성헬스 Data SDK**로 읽는다. Health Connect에는
+     * 연결을 켠 시점부터 30일치만 넘어와서 그 이전을 가져올 수가 없었다.
+     * 삼성헬스 저장소에는 몇 달치가 살아 있다. 자세한 건 SamsungHealth.kt 참고.
+     *
+     * 매일 도는 [run] 은 Health Connect 그대로다. 여기만 다른 경로를 쓴다.
+     */
     suspend fun backfill(context: Context, days: Int): String {
-        val client = HealthConnectClient.getOrCreate(context)
-        val entries = collect(client, LocalDate.now().minusDays(days.toLong()))
+        val entries = SamsungHealth.dailySteps(context, days)
 
         if (entries.isEmpty()) {
-            return "가져올 지난 기록이 없습니다.\n\n" +
-                "삼성헬스의 Health Connect 연결은\n켠 시점부터 데이터를 넘깁니다."
+            return "가져올 지난 기록이 없습니다."
         }
 
         // Firestore commit 은 한 번에 500건까지

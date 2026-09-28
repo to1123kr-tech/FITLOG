@@ -42,7 +42,8 @@ class MainActivity : ComponentActivity() {
             setOnClickListener { start() }
         }
         val backfillButton = Button(this).apply {
-            text = "지난 90일 가져오기"
+            // 삼성헬스에서 직접 읽는다 (Health Connect 30일 한계를 넘기 위해)
+            text = "지난 3개월 가져오기"
             setOnClickListener { backfill(90) }
         }
 
@@ -99,9 +100,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** 지난 기록 일괄 전송 */
+    /** 지난 기록 일괄 전송. 삼성헬스 Data SDK로 읽는다 (SamsungHealth.kt) */
     private fun backfill(days: Int) {
-        status.text = "지난 ${days}일 확인 중...\n조금 걸립니다"
+        status.text = "삼성헬스에서 지난 ${days}일 확인 중...\n조금 걸립니다"
         lifecycleScope.launch {
             val msg = withContext(Dispatchers.IO) {
                 try {
