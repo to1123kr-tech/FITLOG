@@ -40,6 +40,13 @@ dependencies {
     // 매일 동기화는 아래 Health Connect 그대로.
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar"))))
 
+    // ⚠️ fileTree 로 넣은 aar 는 POM 이 없어서 자기 의존성을 못 끌고 온다.
+    //    없으면 컴파일은 되고 실행 중에 NoClassDefFoundError 로 앱이 죽는다.
+    //    아래 둘은 aar 안의 클래스가 실제로 참조하는 것을 확인하고 넣은 것.
+    //    (coroutines / androidx.annotation 은 아래 것들이 이미 끌고 온다)
+    implementation("com.google.code.gson:gson:2.11.0")
+    implementation("org.jetbrains.kotlin:kotlin-parcelize-runtime:2.1.20")
+
     implementation("androidx.health.connect:connect-client:1.1.0")
     implementation("androidx.activity:activity-ktx:1.9.3")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")

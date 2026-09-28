@@ -92,8 +92,8 @@ class MainActivity : ComponentActivity() {
             val msg = withContext(Dispatchers.IO) {
                 try {
                     StepsSync.run(this@MainActivity)
-                } catch (e: Exception) {
-                    "실패\n${e.message}"
+                } catch (e: Throwable) {
+                    describe(e)
                 }
             }
             status.text = msg
@@ -107,11 +107,26 @@ class MainActivity : ComponentActivity() {
             val msg = withContext(Dispatchers.IO) {
                 try {
                     StepsSync.backfill(this@MainActivity, days)
-                } catch (e: Exception) {
-                    "실패\n${e.message}"
+                } catch (e: Throwable) {
+                    describe(e)
                 }
             }
             status.text = msg
         }
+    }
+
+    /**
+     * 실패 원인을 화면에 띄운다.
+     *
+     * Exception 만 잡으면 안 된다. 라이브러리가 필요로 하는 클래스가 빠져 있으면
+     * NoClassDefFoundError 가 나는데 이건 Error 라서 안 잡히고 **앱이 그냥 꺼진다.**
+     * 폰에서 원인을 볼 방법이 없어지므로 Throwable 로 받아서 종류까지 보여준다.
+     */
+    private fun describe(e: Throwable): String {
+        val name = e::class.java.simpleName
+        val cause = generateSequence(e) { it.cause }.last()
+        val detail = e.message ?: cause.message ?: ""
+        return if (cause !== e) "실패 ($name)\n$detail\n\n원인: ${cause::class.java.simpleName}\n${cause.message ?: ""}"
+        else "실패 ($name)\n$detail"
     }
 }
