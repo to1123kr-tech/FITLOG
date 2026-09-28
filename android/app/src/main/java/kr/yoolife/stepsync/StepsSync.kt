@@ -1,5 +1,6 @@
 package kr.yoolife.stepsync
 
+import android.app.Activity
 import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
@@ -78,9 +79,12 @@ object StepsSync {
      * 삼성헬스 저장소에는 몇 달치가 살아 있다. 자세한 건 SamsungHealth.kt 참고.
      *
      * 매일 도는 [run] 은 Health Connect 그대로다. 여기만 다른 경로를 쓴다.
+     *
+     * Context 가 아니라 **Activity** 를 받는다. 삼성 SDK 의 권한 요청이 Activity 를
+     * 요구해서다. WorkManager 에서 부를 수 없다는 뜻이기도 하다 (부를 일도 없다).
      */
-    suspend fun backfill(context: Context, days: Int): String {
-        val entries = SamsungHealth.dailySteps(context, days)
+    suspend fun backfill(activity: Activity, days: Int): String {
+        val entries = SamsungHealth.dailySteps(activity, days)
 
         if (entries.isEmpty()) {
             return "가져올 지난 기록이 없습니다."

@@ -1,6 +1,6 @@
 package kr.yoolife.stepsync
 
-import android.content.Context
+import android.app.Activity
 import com.samsung.android.sdk.health.data.HealthDataService
 import com.samsung.android.sdk.health.data.permission.AccessType
 import com.samsung.android.sdk.health.data.permission.Permission
@@ -45,12 +45,17 @@ object SamsungHealth {
      * 오늘부터 [days]일 전까지의 **일별 총 걸음수**를 돌려준다.
      * 걸음수 0인 날은 제외한다 (수동 입력값을 덮어쓰지 않기 위해).
      * 반환: `("2026-09-28", 3128)` 꼴, 날짜 오름차순.
+     *
+     * [activity] 는 Context 가 아니라 **Activity** 여야 한다. 권한 팝업을 띄우는
+     * requestPermissions 가 Activity 를 요구한다. (삼성 API 문서에는 Context 로
+     * 적혀 있지만 실제 시그니처가 다르다 — 컴파일 에러로 확인)
+     * 이 제약 때문에도 백그라운드(WorkManager)에는 붙일 수 없다.
      */
-    suspend fun dailySteps(context: Context, days: Int): List<Pair<String, Long>> {
-        val store = HealthDataService.getStore(context)
+    suspend fun dailySteps(activity: Activity, days: Int): List<Pair<String, Long>> {
+        val store = HealthDataService.getStore(activity)
 
         if (!store.getGrantedPermissions(PERMISSIONS).containsAll(PERMISSIONS)) {
-            store.requestPermissions(PERMISSIONS, context)
+            store.requestPermissions(PERMISSIONS, activity)
             if (!store.getGrantedPermissions(PERMISSIONS).containsAll(PERMISSIONS)) {
                 throw NotAllowed(
                     "삼성헬스 걸음수 읽기 권한이 없습니다.\n\n" +
