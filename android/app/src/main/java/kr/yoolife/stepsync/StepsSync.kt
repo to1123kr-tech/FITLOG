@@ -2,6 +2,7 @@ package kr.yoolife.stepsync
 
 import android.app.Activity
 import android.content.Context
+import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.StepsRecord
@@ -17,19 +18,23 @@ import java.time.Period
 import java.time.format.DateTimeFormatter
 
 /**
- * 걸음수를 읽어 Firestore에 올린다. 읽는 경로가 둘이다:
+ * 걸음수를 읽어 Firestore에 올린다.
  *
- *  - [run]      매일 도는 정기 동기화 → **Health Connect** (백그라운드 포함)
- *  - [backfill] 과거 채우기 버튼      → **삼성헬스 Data SDK** (SamsungHealth.kt)
+ *  - [run]      매일 도는 정기 동기화 → **삼성헬스 SDK**, 실패하면 Health Connect
+ *  - [backfill] 과거 채우기 버튼      → **삼성헬스 SDK** (SamsungHealth.kt)
  *
- * 나눠 둔 이유는 SamsungHealth.kt 주석 참고. 요약하면 과거 기록은 Health Connect에
- * 30일치밖에 없고, 삼성헬스 SDK는 백그라운드 동작이 확인되지 않았다.
+ * `[방3·10/25]` 전에는 [run] 이 Health Connect 전용이었다. 그 집계가 자정에 걸친
+ * 기록을 쪼개면서 정수 버림을 일으켜 **삼성헬스보다 매일 1걸음 모자랐다**(§4-6).
+ * 삼성 SDK 읽기에 Activity 가 필요 없다는 걸 확인하고(SamsungHealth.kt 주석)
+ * 양쪽 경로를 삼성 SDK 로 통일했다. Health Connect 는 폴백으로만 남는다.
  *
  * 웹앱(index.html)이 기대하는 문서 형태는 양쪽 다 동일하게 맞춘다:
  *   { id, dateStr:"YYYY-MM-DD", ampm:"am", type:"steps", steps:Int, ts:Long }
  * 문서 id를 날짜로 고정하므로 하루에 몇 번 돌려도 같은 문서가 갱신된다.
  */
 object StepsSync {
+
+    private const val TAG = "StepSync"
 
     // 이미 웹앱(index.html)에 공개되어 있는 값과 동일한 키
     private const val API_KEY = "AIzaSyAYVVjoGbe7Tez7skPJgU0wdUhzY4EVhvo"
@@ -58,17 +63,27 @@ object StepsSync {
      * 폰이 꺼져 있거나 인터넷이 없던 날도 함께 메워진다.
      */
     suspend fun run(context: Context): String {
-        val client = HealthConnectClient.getOrCreate(context)
         val today = LocalDate.now()
 
-        val entries = collect(client, today.minusDays(CATCHUP_DAYS))
+        // 1순위 삼성헬스 SDK — 삼성헬스가 계산한 일별 총합이라 숫자가 정확히 일치한다.
+        // 2순위 Health Connect 집계 — 개발자 모드가 꺼졌거나 SDK가 막히면 여기로.
+        //        경계 기록을 쪼개며 정수 버림이 생겨 하루 1걸음쯤 모자란다(§4-6).
+        val fromSamsung = SamsungHealth.dailyStepsOrNull(context, CATCHUP_DAYS.toInt())
+        val viaSamsung = fromSamsung != null
+        val entries = fromSamsung
+            ?: collect(HealthConnectClient.getOrCreate(context), today.minusDays(CATCHUP_DAYS))
+
+        val source = if (viaSamsung) "삼성헬스" else "Health Connect"
+        Log.i(TAG, "동기화 경로=$source, ${entries.size}일치")
+
         if (entries.isEmpty()) return "올릴 걸음수 기록이 없습니다."
 
         commit(entries)
 
         val todayStr = today.format(DAY)
         val todaySteps = entries.firstOrNull { it.first == todayStr }?.second ?: 0L
-        return "$todayStr\n${todaySteps}걸음 전송 완료\n(${LocalDateTime.now().format(CLOCK)})"
+        Log.i(TAG, "전송 완료 $todayStr=$todaySteps ($source)")
+        return "$todayStr\n${todaySteps}걸음 전송 완료\n$source · ${LocalDateTime.now().format(CLOCK)}"
     }
 
     /**

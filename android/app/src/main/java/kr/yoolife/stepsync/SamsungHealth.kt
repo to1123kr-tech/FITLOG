@@ -1,7 +1,10 @@
 package kr.yoolife.stepsync
 
 import android.app.Activity
+import android.content.Context
+import android.util.Log
 import com.samsung.android.sdk.health.data.HealthDataService
+import com.samsung.android.sdk.health.data.HealthDataStore
 import com.samsung.android.sdk.health.data.permission.AccessType
 import com.samsung.android.sdk.health.data.permission.Permission
 import com.samsung.android.sdk.health.data.request.DataType
@@ -28,10 +31,21 @@ import java.time.format.DateTimeFormatter
  * 파트너 승인은 앱을 배포할 때만 필요하다. 개인 사이드로딩이라 읽기는 이걸로 된다.
  * 꺼지면 이 기능만 멈춘다. 매일 동기화는 Health Connect라 영향 없다.
  *
- * ⚠️ 백그라운드에서도 읽히는지는 확인 안 됐다. 그래서 **사용자가 버튼을 누르는
- * 포그라운드 작업(과거 채우기)에만** 쓴다. WorkManager 쪽에는 붙이지 말 것.
+ * 📌 **정정 `[방3·10/25]`**: "백그라운드에서 읽히는지 확인 안 됐다"고 적어두고 과거
+ * 채우기에만 썼으나, aar 바이트코드를 까보니 **Activity 를 요구하는 건
+ * `requestPermissions` 하나뿐**이었다:
+ * ```
+ * getStore(android.content.Context)
+ * getGrantedPermissions(Set, Continuation)
+ * aggregateData(AggregateRequest, Continuation)
+ * requestPermissions(Set, android.app.Activity, Continuation)   ← 여기만
+ * ```
+ * 권한이 이미 승인돼 있으면 Activity 없이 읽을 수 있다. 그래서 매일 동기화도
+ * [dailyStepsOrNull] 로 이 경로를 먼저 쓴다. 실패하면 Health Connect 로 폴백.
  */
 object SamsungHealth {
+
+    private const val TAG = "StepSync"
 
     private val DAY = DateTimeFormatter.ISO_LOCAL_DATE
 
@@ -49,7 +63,10 @@ object SamsungHealth {
      * [activity] 는 Context 가 아니라 **Activity** 여야 한다. 권한 팝업을 띄우는
      * requestPermissions 가 Activity 를 요구한다. (삼성 API 문서에는 Context 로
      * 적혀 있지만 실제 시그니처가 다르다 — 컴파일 에러로 확인)
-     * 이 제약 때문에도 백그라운드(WorkManager)에는 붙일 수 없다.
+     *
+     * 정정 `[방3·10/25]`: ~~이 제약 때문에도 백그라운드에는 붙일 수 없다~~ →
+     * Activity 가 필요한 건 **권한을 요청할 때뿐**이다. 이미 승인된 뒤의 읽기는
+     * Activity 가 없어도 된다. 백그라운드용은 [dailyStepsOrNull] 을 쓴다.
      */
     suspend fun dailySteps(activity: Activity, days: Int): List<Pair<String, Long>> {
         val store = HealthDataService.getStore(activity)
@@ -66,6 +83,39 @@ object SamsungHealth {
             }
         }
 
+        return read(store, days)
+    }
+
+    /**
+     * 권한 요청 **없이** 읽기만 시도한다. 매일 동기화(앱 실행·WorkManager 양쪽)용.
+     *
+     * 권한이 없거나 어떤 이유로든 실패하면 **null** 을 돌려준다. 호출 쪽
+     * ([StepsSync.run])이 Health Connect 로 폴백하므로, 최악이어도 예전 동작이다.
+     *
+     * Activity 를 안 받는 근거는 위 클래스 주석 참고 (aar 바이트코드로 확인).
+     *
+     * `Throwable` 까지 잡는 이유: 개발자 모드가 꺼졌거나 SDK 클래스가 없으면
+     * `NoClassDefFoundError` 가 나는데 이건 `Exception` 으로 안 잡힌다(§5-14).
+     * 폴백이 목적이라 뭐가 터지든 null 이면 된다.
+     */
+    suspend fun dailyStepsOrNull(context: Context, days: Int): List<Pair<String, Long>>? =
+        try {
+            val store = HealthDataService.getStore(context)
+            if (!store.getGrantedPermissions(PERMISSIONS).containsAll(PERMISSIONS)) {
+                Log.w(TAG, "삼성 SDK: 걸음수 읽기 권한 없음 → 폴백")
+                null
+            } else {
+                read(store, days).also {
+                    Log.i(TAG, "삼성 SDK: ${it.size}일치 읽음")
+                }
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "삼성 SDK 실패 → 폴백: ${t.javaClass.simpleName}: ${t.message}")
+            null
+        }
+
+    /** 오늘부터 [days]일 전까지의 일별 총합. 0걸음인 날은 뺀다. */
+    private suspend fun read(store: HealthDataStore, days: Int): List<Pair<String, Long>> {
         val today = LocalDate.now()
         val request = DataType.StepsType.TOTAL.requestBuilder
             .setLocalTimeFilterWithGroup(
