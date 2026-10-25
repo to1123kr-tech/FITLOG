@@ -17,6 +17,24 @@ android {
         versionName = "1.0"
     }
 
+    // ★ 저장소에 넣어둔 디버그 키로 서명한다.
+    //
+    // 기본값(각 빌드 머신의 ~/.android/debug.keystore)을 쓰면 **CI 가 빌드할 때마다
+    // 키를 새로 만들어서 서명이 달라진다.** 그러면 덮어쓰기 설치가 거부되고
+    // (INSTALL_FAILED_UPDATE_INCOMPATIBLE) 지웠다 깔아야 하는데, 그때
+    // **삼성헬스 권한이 날아가서 복구가 안 된다.** 실제로 그렇게 잃었다.
+    //
+    // 키를 고정하면 `adb install -r` 로 덮어쓰기가 되고 권한이 유지된다.
+    // 스토어에 올리지 않는 개인 사이드로딩 전용이라 디버그 키로 충분하다.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("../keystore/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         // 디버그 키로 서명된 APK를 그대로 사이드로딩한다 (스토어 배포 안 함)
         release {
